@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
-from io import BytesIO
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -22,15 +21,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import yaml
-from PIL import Image
 
-try:
-    from pillow_heif import register_heif_opener
-except ImportError:
-    register_heif_opener = None
-else:
-    register_heif_opener(thumbnails=False)
-
+from image_codec import convert_image, validate_image, register_heif_opener
 
 ROOT = Path(__file__).resolve().parents[1]
 INBOX = "trigger_imgs"
@@ -90,6 +82,8 @@ def read_state(root: Path = ROOT) -> dict:
         image = relative_path(event["image_path"])
         if (not OID.fullmatch(event["commit"]) or not OID.fullmatch(event["blob_sha"])
                 or not re.fullmatch(r"[0-9a-f]{64}", event["sha256"])
+                or ("file_sha256" in event and (not isinstance(event["file_sha256"], str)
+                                               or not re.fullmatch(r"[0-9a-f]{64}", event["file_sha256"])))
                 or not IDENT.fullmatch(event["id"])
                 or len(upload.parts) < 2 or upload.parts[0] != INBOX
                 or upload.name in IGNORED_NAMES or upload.suffix.lower() not in EXTENSIONS
@@ -152,23 +146,6 @@ def commit_details(root: Path, commit: str) -> tuple[datetime, str]:
     return date, caption
 
 
-def validate_image(data: bytes, filename: str) -> None:
-    if not data:
-        raise ValueError(f"Empty image upload: {filename}")
-    try:
-        with Image.open(BytesIO(data)) as image:
-            if image.format not in {"JPEG", "MPO", "PNG", "WEBP", "GIF", "HEIF"}:
-                raise ValueError(f"Unsupported image format: {filename}")
-            image.verify()
-        with Image.open(BytesIO(data)) as image:
-            animated = image.format in {"GIF", "PNG", "WEBP"} and getattr(image, "is_animated", False)
-            for frame in range(image.n_frames if animated else 1):
-                image.seek(frame)
-                image.load()
-    except (OSError, SyntaxError, EOFError, Image.DecompressionBombError) as error:
-        hint = " (HEIC/HEIF uploads require pillow-heif)" if Path(filename).suffix.lower() in {".heic", ".heif"} and register_heif_opener is None else ""
-        raise ValueError(f"Invalid or damaged image upload: {filename}{hint}") from error
-
 
 def ingest(root: Path = ROOT) -> int:
     root = Path(root).resolve()
@@ -203,7 +180,7 @@ def ingest(root: Path = ROOT) -> int:
                     raise ValueError(f"Unsupported upload: {upload['path']}; use JPG/JPEG, PNG, WebP, GIF or HEIC/HEIF")
                 data = git(root, "cat-file", "blob", upload["blob_sha"])
                 try:
-                    validate_image(data, upload["path"])
+                    converted = convert_image(data, upload["path"])
                 except ValueError:
                     if not superseded:
                         raise
@@ -215,10 +192,10 @@ def ingest(root: Path = ROOT) -> int:
                 target = safe_destination(root, package)
                 if target.exists() or any(item[1] == target for item in prepared):
                     raise ValueError(f"Post package already exists and will not be overwritten: {package}")
-                filename = date.strftime("%Y%m%d-%H%M%S") + f"-{number:02d}" + PurePosixPath(upload["path"]).suffix.lower()
+                filename = date.strftime("%Y%m%d-%H%M%S") + f"-{number:02d}" + ".webp"
                 pending = staging / ident
                 (pending / "assets").mkdir(parents=True)
-                (pending / "assets" / filename).write_bytes(data)
+                (pending / "assets" / filename).write_bytes(converted)
                 meta = {"id": ident, "date": date.isoformat(timespec="seconds"),
                         "title": f"{date.day:02d} {MONTHS[date.month - 1]}, {date.year} {date:%H:%M}",
                         "author": "五月七日", "status": "published", "image": "assets/" + filename,
@@ -227,6 +204,7 @@ def ingest(root: Path = ROOT) -> int:
                                                    + "---\n\n" + caption + "\n", encoding="utf-8")
                 updated["events"][key] = {"id": ident, "commit": commit, "upload_path": upload["path"],
                                            "blob_sha": upload["blob_sha"], "sha256": hashlib.sha256(data).hexdigest(),
+                                           "file_sha256": hashlib.sha256(converted).hexdigest(),
                                            "image_path": package + "/assets/" + filename,
                                            "route": f"page/{date:%Y/%m}/{ident}/"}
                 prepared.append((pending, target))
