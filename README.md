@@ -2,6 +2,8 @@
 
 五月七日的美食分享。保留原 `/foodie/` 的手机聊天界面，内容、照片和构建程序由此仓库独立管理。
 
+正式网址：[savour.fivsevn.com](https://savour.fivsevn.com/)。
+
 ## 内容与图片
 
 一张照片对应一个帖子：`savour/YYYY/MM/{id}/index.md` 与同目录 `assets/`。`index.md` 的 frontmatter 保存不可变 ID、带时区的日期、图片、作者和状态；分隔线后的 Markdown 是可编辑正文。正文只在单帖的第二条消息气泡显示。没有正文就不显示额外气泡。无需 tags。
@@ -38,7 +40,9 @@ python scripts/check.py
 python -m http.server 8000 --directory _site
 ```
 
-输出 `_site/` 不提交。首页、`feed/2/` 等分页和 `page/YYYY/MM/{id}/` 单帖都来自同一份内容。列表按真实日期和 ID 倒序排列，每页 11 帖。`--base-path /fivsevn-savour` 支持 GitHub 项目 Pages；默认空路径支持以后独立域名。Actions 自动读取 Pages 的实际 base path。不会创建 CNAME 或更改 DNS。
+输出 `_site/` 不提交。首页、`feed/2/` 等分页和 `page/YYYY/MM/{id}/` 单帖都来自同一份内容。列表按真实日期和 ID 倒序排列，每页 11 帖。默认空路径用于正式独立域名；`--base-path /fivsevn-savour` 可构建 GitHub 项目路径版本。Actions 自动读取 Pages 的实际 base path。切换 Pages 域名后必须重新运行构建，避免旧路径残留。构建不会创建 CNAME 或更改 DNS。
+
+列表、首尾锁屏和详情使用相同尺寸的手机外框，整列居中。桌面为 400 × 720，小屏按相同比例缩放。短内容保留空白，长内容在聊天区域内滚动；详情使用手机顶部返回箭头回到来源分页和帖子位置。
 
 `site.json` 可以调整分页大小、电量和进度范围。手机时间为合法 HH:MM，电量默认 0–100，进度默认 0–999.9999%，每台手机独立，在每次文档加载时生成一次。滚动和停留不会重抽。锁屏状态栏电量与 Charged 一致。数字预留宽度，不影响真实发布日期和 URL。
 
@@ -56,6 +60,6 @@ python -m http.server 8000 --directory _site
 
 ## 发布
 
-GitHub Pages 使用 **GitHub Actions** 作为 Source。推送 `main` 后执行测试、构建、全部内部引用和图片检查，再部署。暂时使用实际 Pages 地址验收；`savour.fivsevn.com` 须等用户单独配置后再切换。
+GitHub Pages 使用 **GitHub Actions** 作为 Source。推送 `main` 后执行测试、构建、全部内部引用和图片检查，再部署。用户于 2026-10-29 在 Pages 中配置正式域名 `savour.fivsevn.com`；部署使用该域名根路径。DNS 和 HTTPS 证书由域名服务与 GitHub Pages 管理。
 
 构建产生 `build-receipt.json`，记录实际部署文件的 SHA-256。检查线上页面时应验证首页、最后分页、单帖、展示图和原图，而非仅依赖工作流显示成功。
