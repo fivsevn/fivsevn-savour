@@ -84,7 +84,7 @@ def build(root=ROOT, output=None, base_path=''):
         dest=output/p['route'];(dest/'assets').mkdir(parents=True,exist_ok=True)
         shutil.copy2(p['image_path'],dest/'assets'/p['image_path'].name)
         with Image.open(p['image_path']) as im:
-            animated=getattr(im,'is_animated',False)
+            animated=im.format in {'GIF','PNG','WEBP'} and getattr(im,'is_animated',False)
             im=ImageOps.exif_transpose(im).convert('RGB');p['width'],p['height']=im.size
             if not animated:
                 im.thumbnail((1400,1400));im.save(dest/'assets/display.webp','WEBP',quality=88,method=6)
