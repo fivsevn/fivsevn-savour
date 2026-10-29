@@ -1,0 +1,31 @@
+name: Import original Savour assets
+on:
+  push:
+    branches: [main]
+    paths: [savour-source.tar.gz, .github/workflows/bootstrap.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Copy verified migration into this repository
+        shell: bash
+        run: |
+          if [ ! -f savour-source.tar.gz ]; then
+            echo "Migration already imported. Nothing to do."
+            exit 0
+          fi
+          tar -xzf savour-source.tar.gz --exclude='.github' --exclude='.github/*'
+          python scripts/restore_assets.py
+          rm savour-source.tar.gz
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add savour migration site-assets scripts requirements.txt site.json README.md .gitignore .migration-assets-complete savour-source.tar.gz
+          git commit -m "feat: Import complete Savour archive and phone website"
+          git push origin HEAD:main
