@@ -38,7 +38,8 @@ def clear_verified(root=ROOT):
             raise ValueError('Unsafe inbox cleanup path.')
         if not source.is_file() or not saved.is_file():
             continue
-        if digest(source) != event['sha256'] or digest(saved) != event['sha256']:
+        saved_sha = event.get('file_sha256', event['sha256'])
+        if digest(source) != event['sha256'] or digest(saved) != saved_sha:
             continue  # A newer upload or manually edited saved image is never removed.
         package = saved.parent.parent
         meta = yaml.safe_load((package / 'index.md').read_text().split('---', 2)[1])
