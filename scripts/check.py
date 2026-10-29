@@ -4,6 +4,7 @@ import argparse,hashlib,json
 from pathlib import Path
 from urllib.parse import urlparse,unquote
 from bs4 import BeautifulSoup
+from PIL import Image
 from build import ROOT,read_posts
 
 def check(output,base_path):
@@ -19,7 +20,13 @@ def check(output,base_path):
             missing.append(a['path']);continue
         if hashlib.sha256(f.read_bytes()).hexdigest()!=a['sha256']:
             raise AssertionError('Original asset changed: '+a['path'])
+        if a['role'] in ['post','unassigned']:
+            with Image.open(f) as im:
+                assert f.suffix.lower()=='.webp' and im.format=='WEBP',f'Photo is not WebP: {f}'
     assert not missing,missing
+    for post in posts:
+        with Image.open(post['image_path']) as im:
+            assert post['image_path'].suffix.lower()=='.webp' and im.format=='WEBP',post['source']
     errors=[];html_count=0
     for f in output.rglob('*.html'):
         html_count+=1;soup=BeautifulSoup(f.read_text(),'html.parser')
