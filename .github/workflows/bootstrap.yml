@@ -1,31 +1,67 @@
-name: Import original Savour assets
+name: Apply verified Savour update
 on:
   push:
     branches: [main]
-    paths: [savour-source.tar.gz, .github/workflows/bootstrap.yml]
+    paths: [maintenance-update.json]
   workflow_dispatch:
 permissions:
   contents: write
 jobs:
-  import:
+  apply:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Copy verified migration into this repository
-        shell: bash
+      - name: Apply reviewed files without overwriting newer edits
+        shell: python
         run: |
-          if [ ! -f savour-source.tar.gz ]; then
-            echo "Migration already imported. Nothing to do."
-            exit 0
-          fi
-          tar -xzf savour-source.tar.gz --exclude='.github' --exclude='.github/*'
-          python scripts/restore_assets.py
-          rm savour-source.tar.gz
+          import hashlib,json,subprocess
+          from pathlib import Path
+          root=Path.cwd().resolve()
+          payload=root/'maintenance-update.json'
+          if not payload.exists():
+              print('Update already applied.');raise SystemExit(0)
+          data=json.loads(payload.read_text())
+          subprocess.run(['git','merge-base','--is-ancestor',data['base_commit'],'HEAD'],check=True)
+          def safe(name):
+              p=Path(name)
+              if p.is_absolute() or '..' in p.parts or name.startswith('.github/'):
+                  raise ValueError('Unsafe update path: '+name)
+              result=root/p
+              if result.is_symlink() or not result.resolve().is_relative_to(root):
+                  raise ValueError('Unsafe update destination: '+name)
+              return result
+          def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+          for name,item in data['files'].items():
+              p=safe(name);actual=digest(p) if p.exists() else None
+              if actual!=item['old_sha256']:raise ValueError('Newer edit retained: '+name)
+          for name,sha in data['delete'].items():
+              p=safe(name)
+              if not p.is_file() or digest(p)!=sha:raise ValueError('Deletion input changed: '+name)
+          for item in data['moves']:
+              source=safe(item['from']);target=safe(item['to'])
+              if not source.is_file() or digest(source)!=item['sha256'] or target.exists():
+                  raise ValueError('Move input changed: '+item['from'])
+          for name,item in data['files'].items():
+              p=safe(name);p.parent.mkdir(parents=True,exist_ok=True);p.write_text(item['text'])
+          for name in data['delete']:safe(name).unlink()
+          for item in data['moves']:
+              target=safe(item['to']);target.parent.mkdir(parents=True,exist_ok=True);safe(item['from']).rename(target)
+          payload.unlink()
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Commit verified upload publishing and clean content metadata
+        run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add savour migration site-assets scripts requirements.txt site.json README.md .gitignore .migration-assets-complete savour-source.tar.gz
-          git commit -m "feat: Import complete Savour archive and phone website"
-          git push origin HEAD:main
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: Add upload publishing and retire old migration metadata'
+            git push origin HEAD:main
+          fi
