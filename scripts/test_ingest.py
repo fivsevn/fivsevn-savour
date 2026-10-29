@@ -62,7 +62,36 @@ class IngestTests(unittest.TestCase):
             result.append((path, yaml.safe_load(head), body.strip()))
         return result
 
-    def test_batch_names_date_caption_and_original_bytes(self):
+    def assertWebpPixels(self, saved, original):
+        with Image.open(saved) as output, Image.open(BytesIO(original)) as source:
+            self.assertEqual(output.format, "WEBP")
+            self.assertEqual(output.size, source.size)
+            self.assertEqual(output.convert("RGBA").tobytes(), source.convert("RGBA").tobytes())
+
+    def test_already_webp_is_not_recompressed_and_legacy_events_still_read(self):
+        payload = image_bytes(format="WEBP")
+        self.write("trigger_imgs/ready.WEBP", payload)
+        self.commit("Upload existing WebP")
+        self.assertEqual(ingest(self.root), 1)
+        state = read_state(self.root)
+        event = next(iter(state["events"].values()))
+        self.assertEqual((self.root / event["image_path"]).read_bytes(), payload)
+        self.assertEqual(event["sha256"], event["file_sha256"])
+        event.pop("file_sha256")
+        self.state_path.write_text(json.dumps(state))
+        self.assertEqual(read_state(self.root), state)
+
+    def test_invalid_saved_digest_is_rejected(self):
+        self.write("trigger_imgs/a.png", image_bytes())
+        self.commit("Upload")
+        ingest(self.root)
+        state = read_state(self.root)
+        next(iter(state["events"].values()))["file_sha256"] = "invalid"
+        self.state_path.write_text(json.dumps(state))
+        with self.assertRaisesRegex(ValueError, "Invalid publishing event"):
+            read_state(self.root)
+
+    def test_batch_names_date_caption_and_webp_assets(self):
         payloads = {"trigger_imgs/说明/IMG_0001.PNG": image_bytes("red"),
                     "trigger_imgs/相片/IMG_0001.PNG": image_bytes("blue")}
         for path, data in payloads.items():
@@ -76,8 +105,9 @@ class IngestTests(unittest.TestCase):
         for number, upload in enumerate(paths, start=1):
             event = state["events"][sha + ":" + upload]
             original = self.root / event["image_path"]
-            self.assertEqual(original.name, f"20261029-123012-{number:02d}.png")
-            self.assertEqual(original.read_bytes(), payloads[upload])
+            self.assertEqual(original.name, f"20261029-123012-{number:02d}.webp")
+            self.assertWebpPixels(original, payloads[upload])
+            self.assertEqual(event["file_sha256"], hashlib.sha256(original.read_bytes()).hexdigest())
             self.assertEqual(event["sha256"], hashlib.sha256(payloads[upload]).hexdigest())
             self.assertEqual(event["blob_sha"], self.command("rev-parse", sha + ":" + upload))
             _, meta, body = next(package for package in self.packages() if package[1]["id"] == event["id"])
@@ -100,8 +130,8 @@ class IngestTests(unittest.TestCase):
         self.assertEqual(ingest(self.root), 2)
         events = read_state(self.root)["events"]
         self.assertEqual(list(events), [one + ":" + upload, two + ":" + upload])
-        self.assertEqual((self.root / events[one + ":" + upload]["image_path"]).read_bytes(), first)
-        self.assertEqual((self.root / events[two + ":" + upload]["image_path"]).read_bytes(), second)
+        self.assertWebpPixels(self.root / events[one + ":" + upload]["image_path"], first)
+        self.assertWebpPixels(self.root / events[two + ":" + upload]["image_path"], second)
 
     def test_retry_and_rewound_cursor_never_overwrite_manual_edits(self):
         self.write("trigger_imgs/a.jpg", image_bytes(format="JPEG"))
@@ -156,7 +186,7 @@ class IngestTests(unittest.TestCase):
         latest = self.commit("Remove inbox original")
         self.assertEqual(ingest(self.root), 1)
         event = next(iter(read_state(self.root)["events"].values()))
-        self.assertEqual((self.root / event["image_path"]).read_bytes(), payload)
+        self.assertWebpPixels(self.root / event["image_path"], payload)
         self.assertEqual(read_state(self.root)["cursor"], latest)
 
     def test_bad_batch_leaves_all_content_state_and_inbox_intact(self):
@@ -266,7 +296,7 @@ class IngestTests(unittest.TestCase):
             ingest(self.root)
         self.assertFalse(self.packages())
 
-    def test_animated_original_is_preserved_without_reencoding(self):
+    def test_animation_is_saved_as_webp_with_frames_and_timing(self):
         data = BytesIO()
         Image.new("RGB", (3, 2), "red").save(data, format="GIF", save_all=True,
                                                 append_images=[Image.new("RGB", (3, 2), "blue")], duration=[100, 200], loop=0)
@@ -275,12 +305,18 @@ class IngestTests(unittest.TestCase):
         self.commit("Upload animation")
         self.assertEqual(ingest(self.root), 1)
         event = next(iter(read_state(self.root)["events"].values()))
-        self.assertEqual((self.root / event["image_path"]).read_bytes(), original)
+        self.assertEqual(event["sha256"], hashlib.sha256(original).hexdigest())
+        self.assertEqual(event["file_sha256"], hashlib.sha256((self.root / event["image_path"]).read_bytes()).hexdigest())
         with Image.open(self.root / event["image_path"]) as saved:
+            self.assertEqual(saved.format, "WEBP")
             self.assertEqual(saved.n_frames, 2)
+            self.assertEqual(saved.info["loop"], 0)
+            for number, duration in enumerate([100, 200]):
+                saved.seek(number); saved.load()
+                self.assertEqual(saved.info["duration"], duration)
 
     @unittest.skipUnless(register_heif_opener is not None, "HEIC support requires pillow-heif")
-    def test_heic_original_bytes_and_extension_are_retained(self):
+    def test_heic_upload_becomes_a_webp_and_keeps_source_digest(self):
         data = BytesIO()
         Image.new("RGB", (4, 4), "green").save(data, format="HEIF")
         original = data.getvalue()
@@ -289,8 +325,12 @@ class IngestTests(unittest.TestCase):
         self.assertEqual(ingest(self.root), 1)
         event = next(iter(read_state(self.root)["events"].values()))
         saved = self.root / event["image_path"]
-        self.assertEqual(saved.suffix, ".heic")
-        self.assertEqual(saved.read_bytes(), original)
+        self.assertEqual(saved.suffix, ".webp")
+        self.assertEqual(event["sha256"], hashlib.sha256(original).hexdigest())
+        self.assertEqual(event["file_sha256"], hashlib.sha256(saved.read_bytes()).hexdigest())
+        with Image.open(saved) as image:
+            self.assertEqual(image.format, "WEBP")
+            self.assertEqual(image.size, (4, 4))
 
     def test_state_write_failure_rolls_back_installed_packages(self):
         self.write("trigger_imgs/a.png", image_bytes())
