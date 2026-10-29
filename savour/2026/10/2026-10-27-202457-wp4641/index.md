@@ -14,4 +14,5 @@ legacy:
   asset_path: foodie/nothomecooked/IMG_2948.jpeg
   asset_git_sha: a1ba4c3de9a492b84c8e860260245b88455e9960
 ---
+
 美味黑森林！
