@@ -74,7 +74,7 @@ def build(root=ROOT, output=None, base_path=''):
         return f'<div class="message"><img class="avatar" src="{url("site-assets/avatar.png")}" width="31" height="31" alt="五月七日" loading="lazy"><div class="bubble {classes}">{content}</div></div>'
     def composer(text='｜下滑继续吃。'):
         return f'<div class="composer"><span class="composer-symbol" aria-hidden="true">+</span><span class="composer-input">{text}</span><a class="plain-control composer-symbol composer-up" href="#top" aria-label="回到顶部">↑</a></div>'
-    progress='<div class="progress"><span>摄取进度</span><span>eating progress</span><span>[</span><span class="green" aria-hidden="true">▏▎▍▌▋▊▉█</span><span>]</span><span class="green progress-value" data-random="progress">000.0000</span><span class="green">%</span></div>'
+    progress='<div class="progress"><span>摄取进度</span><span>eating progress</span><span>[</span><span class="green" aria-hidden="true">▏▎▍▌▋▊▉█</span><span>]</span><span class="green progress-amount"><span class="progress-value" data-random="progress">000.000</span>%</span></div>'
     for i,p in enumerate(posts):
         p['list_page']=i//cfg['page_size']+1
         dest=output/p['route'];(dest/'assets').mkdir(parents=True,exist_ok=True)
