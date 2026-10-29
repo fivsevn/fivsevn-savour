@@ -2,3 +2,6 @@ _site/
 __pycache__/
 .venv/
 .DS_Store
+
+# Written only by successful public deployment verification.
+_site/.verified.json

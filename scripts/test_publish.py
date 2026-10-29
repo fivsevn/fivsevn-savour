@@ -1,0 +1,115 @@
+import copy
+import hashlib
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from urllib.parse import urlparse
+from image_inbox import clear_verified
+from verify_live import verify
+
+
+class PublicationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.media = b'original photo bytes'
+        self.source = self.root / 'trigger_imgs/photo.jpg'
+        self.saved = self.root / 'savour/2026/10/2026-10-29-120000-test/assets/photo.jpg'
+        self.route = 'page/2026/10/2026-10-29-120000-test/'
+        for p in [self.source, self.saved]:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(self.media)
+        self.saved.parent.parent.joinpath('index.md').write_text('---\nstatus: published\n---\n')
+        state = {'version': 1, 'events': {'event': {
+            'upload_path': self.source.relative_to(self.root).as_posix(),
+            'image_path': self.saved.relative_to(self.root).as_posix(),
+            'sha256': hashlib.sha256(self.media).hexdigest(), 'route': self.route}}}
+        self.state = state
+        (self.root / '.publishing').mkdir()
+        (self.root / '.publishing/state.json').write_text(json.dumps(state))
+        self.public = {'index.html': b'home', self.route + 'index.html': b'post',
+                       self.route + 'assets/photo.jpg': self.media}
+        files = {}
+        for path, data in self.public.items():
+            p = self.root / '_site' / path
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(data)
+            files[path] = hashlib.sha256(data).hexdigest()
+        receipt = {'posts': 1, 'pages': 1, 'base_path': '', 'files': files}
+        data = json.dumps(receipt).encode()
+        (self.root / '_site/build-receipt.json').write_bytes(data)
+        self.public['build-receipt.json'] = data
+
+    def fetch(self, url):
+        return self.public[urlparse(url).path.lstrip('/')]
+
+    def mark(self):
+        return verify(self.root, 'https://example.test', self.fetch, attempts=1)
+
+    def test_clear_only_after_actual_public_byte_verification(self):
+        self.mark()
+        self.assertEqual(clear_verified(self.root), (1, len(self.media)))
+        self.assertFalse(self.source.exists())
+        self.assertEqual(self.saved.read_bytes(), self.media)
+
+    def test_failed_public_verification_invalidates_old_marker(self):
+        self.mark()
+        self.public[self.route + 'index.html'] = b'wrong public page'
+        with self.assertRaises(ValueError):
+            self.mark()
+        self.assertFalse((self.root / '_site/.verified.json').exists())
+        with self.assertRaises(FileNotFoundError):
+            clear_verified(self.root)
+        self.assertTrue(self.source.exists())
+
+    def test_newer_inbox_upload_is_retained(self):
+        self.mark()
+        self.source.write_bytes(b'new upload')
+        self.assertEqual(clear_verified(self.root)[0], 0)
+        self.assertEqual(self.source.read_bytes(), b'new upload')
+
+    def test_identical_reupload_is_not_cleared_by_an_older_published_post(self):
+        self.mark()
+        newer = self.root / 'savour/2026/10/2026-10-29-120001-new/assets/photo.jpg'
+        newer.parent.mkdir(parents=True)
+        newer.write_bytes(self.media)
+        newer.parent.parent.joinpath('index.md').write_text('---\nstatus: hidden\n---\n')
+        state = copy.deepcopy(self.state)
+        event = copy.deepcopy(state['events']['event'])
+        event['image_path'] = newer.relative_to(self.root).as_posix()
+        event['route'] = 'page/2026/10/2026-10-29-120001-new/'
+        state['events']['newer-event'] = event
+        (self.root / '.publishing/state.json').write_text(json.dumps(state))
+        self.assertEqual(clear_verified(self.root)[0], 0)
+        self.assertTrue(self.source.exists())
+
+    def test_changed_saved_photo_is_retained(self):
+        self.mark()
+        self.saved.write_bytes(b'edited saved photo')
+        self.assertEqual(clear_verified(self.root)[0], 0)
+        self.assertTrue(self.source.exists())
+
+    def test_mismatched_receipt_prevents_cleanup(self):
+        self.mark()
+        marker = self.root / '.publishing/deployed.json'
+        marker.write_text('{}')
+        with self.assertRaises(ValueError):
+            clear_verified(self.root)
+        self.assertTrue(self.source.exists())
+
+    def test_validate_every_path_before_deleting_anything(self):
+        self.mark()
+        state = copy.deepcopy(self.state)
+        bad = copy.deepcopy(state['events']['event'])
+        bad['upload_path'] = '../outside.jpg'
+        state['events']['unsafe'] = bad
+        (self.root / '.publishing/state.json').write_text(json.dumps(state))
+        with self.assertRaises(ValueError):
+            clear_verified(self.root)
+        self.assertTrue(self.source.exists())
+
+
+if __name__ == '__main__':
+    unittest.main()

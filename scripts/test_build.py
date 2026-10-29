@@ -21,12 +21,13 @@ class ContentTests(unittest.TestCase):
     def test_timezone_required(self):self.meta['date']='2026-10-29T12:00:00';self.write();self.assertRaises(ValueError,read_posts,self.root)
     def test_body_edit_preserves_route(self):
         self.write('one');a=read_posts(self.root)[0]['route'];self.write('two');self.assertEqual(a,read_posts(self.root)[0]['route'])
-    def test_migration_accounting(self):
-        data=json.loads((ROOT/'migration/inventory.json').read_text())
-        self.assertEqual(data['total_pages'],12);self.assertEqual(data['page_counts'],[11]*11+[4,0]);self.assertEqual(len(data['posts']),125)
-        self.assertTrue(all(len(p['images'])==len(p['detail_images'])==1 and not any(p['detail_text']) for p in data['posts']))
-        migrated=[p['legacy']['wordpress_id'] for p in read_posts() if p.get('legacy',{}).get('wordpress_id')]
-        expected=[p['wp_id'] for p in data['posts'] if (ROOT/p['content_path']).exists() and yaml.safe_load((ROOT/p['content_path']).read_text().split('---',2)[1])['status']=='published']
-        self.assertEqual(migrated,expected)
+    def test_historical_order_and_local_assets(self):
+        history=json.loads((ROOT/'site-data/history.json').read_text())
+        self.assertEqual(len(history['order']),125)
+        posts=read_posts()
+        expected=[ident for ident in history['order'] if any(p['id']==ident for p in posts)]
+        self.assertEqual([p['id'] for p in posts if p['id'] in history['order']],expected)
+        self.assertTrue(all('archive_url' not in p and 'legacy' not in p for p in posts))
+        self.assertTrue(all(p['image_path'].is_relative_to(ROOT/'savour') for p in posts))
 
 if __name__=='__main__':unittest.main()

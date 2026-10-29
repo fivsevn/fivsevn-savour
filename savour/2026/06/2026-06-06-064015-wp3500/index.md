@@ -6,11 +6,4 @@ author: 五月七日
 status: published
 image: assets/IMG_6830.JPG
 alt: 06 Jun, 2026 07:39
-archive_url: https://fivsevn.com/2026/06/06/foodie-foodie-eastwindx1-img-6830-jpg/
-legacy:
-  wordpress_id: 3500
-  source_page: 11
-  image_url: https://cdn.jsdelivr.net/gh/fivsevn/fivsevn-assets@main/foodie/eastwindx1/IMG_6830.JPG
-  asset_path: foodie/eastwindx1/IMG_6830.JPG
-  asset_git_sha: fe119030437608dcb2818fd507e0a90bc5af09e5
 ---

@@ -8,12 +8,12 @@ from build import ROOT,read_posts
 
 def check(output,base_path):
     posts=read_posts()
-    inventory=json.loads((ROOT/'migration/inventory.json').read_text())
-    manifests=json.loads((ROOT/'migration/assets.json').read_text())
+    history=json.loads((ROOT/'site-data/history.json').read_text())
+    manifests=json.loads((ROOT/'site-data/originals.json').read_text())
     missing=[]
     for a in manifests:
         f=ROOT/a['path']
-        # Removal/hiding is supported after migration, but shared assets stay required.
+        # Deleted posts are allowed; retained originals and shared assets stay verified.
         if not f.exists():
             if a['role']=='post' and not (f.parent.parent/'index.md').exists(): continue
             missing.append(a['path']);continue
@@ -42,7 +42,7 @@ def check(output,base_path):
             assert len(soup.select('.post-phone'))==1,f
             assert len(soup.select('.food-photo'))==1,f
     assert not errors,'\n'.join(errors)
-    print(json.dumps(dict(published_posts=len(posts),audited_old_posts=len(inventory['posts']),verified_assets=len(manifests),html_pages=html_count,broken_links=0,external_runtime_assets=0),ensure_ascii=False))
+    print(json.dumps(dict(published_posts=len(posts),historical_posts=len(history['order']),verified_assets=len(manifests),html_pages=html_count,broken_links=0,external_runtime_assets=0),ensure_ascii=False))
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,default=ROOT/'_site');p.add_argument('--base-path',default='');a=p.parse_args();check(a.output,a.base_path.rstrip('/'))
