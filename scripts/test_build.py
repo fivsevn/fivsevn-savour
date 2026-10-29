@@ -30,6 +30,20 @@ class ContentTests(unittest.TestCase):
         build(root=self.root,output=output)
         route=read_posts(self.root)[0]['route']
         self.assertTrue((output/route/'assets/display.webp').is_file())
+    def test_archived_webp_is_served_without_another_lossy_copy(self):
+        self.meta['image']='assets/a.webp'
+        Image.new('RGB',(20,20),'red').save(self.package/'assets/a.webp','WEBP',quality=85)
+        original=(self.package/'assets/a.webp').read_bytes()
+        self.write()
+        (self.root/'site-assets').mkdir()
+        for name in ['style.css','site.js']:(self.root/'site-assets'/name).write_text('')
+        (self.root/'site.json').write_text(json.dumps({'title':'test','page_size':11,'random':{}}))
+        output=self.root/'output'
+        build(root=self.root,output=output)
+        route=read_posts(self.root)[0]['route']
+        self.assertEqual((output/route/'assets/a.webp').read_bytes(),original)
+        self.assertFalse((output/route/'assets/display.webp').exists())
+        self.assertIn(route+'assets/a.webp',(output/'index.html').read_text())
     def test_body_edit_preserves_route(self):
         self.write('one');a=read_posts(self.root)[0]['route'];self.write('two');self.assertEqual(a,read_posts(self.root)[0]['route'])
     def test_historical_order_and_local_assets(self):
