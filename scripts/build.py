@@ -84,16 +84,17 @@ def build(root=ROOT, output=None, base_path=''):
         dest=output/p['route'];(dest/'assets').mkdir(parents=True,exist_ok=True)
         shutil.copy2(p['image_path'],dest/'assets'/p['image_path'].name)
         with Image.open(p['image_path']) as im:
+            webp=im.format=='WEBP'
             animated=im.format in {'GIF','PNG','WEBP'} and getattr(im,'is_animated',False)
             im=ImageOps.exif_transpose(im).convert('RGB');p['width'],p['height']=im.size
-            if not animated:
+            if not webp and not animated:
                 im.thumbnail((1400,1400));im.save(dest/'assets/display.webp','WEBP',quality=88,method=6)
         p['original_image']=p['route']+'assets/'+p['image_path'].name
-        p['display_image']=p['original_image'] if animated else p['route']+'assets/display.webp'
+        p['display_image']=p['original_image'] if webp or animated else p['route']+'assets/display.webp'
     def phone(p,detail=False):
         return_url=feed(p['list_page'])+'#'+p['id']
         photo=f'<img class="food-photo" src="{url(p["display_image"])}" width="{p["width"]}" height="{p["height"]}" alt="{E(p.get("alt",p.get("title","美食照片")),quote=True)}" loading="lazy" decoding="async">'
-        if detail: photo=f'<a href="{url(p["original_image"])}" aria-label="查看原图">{photo}</a>'
+        if detail: photo=f'<a href="{url(p["original_image"])}" aria-label="查看大图">{photo}</a>'
         else: photo=f'<a class="photo-link" href="{url(p["route"])}" aria-label="打开 {E(p.get("title",p["id"]),quote=True)}">{photo}</a>'
         messages=msg(photo+progress)
         if detail:
