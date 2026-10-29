@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "cursor": "561e1a9376107538a2cbf65507988452baa14523",
+  "cursor": "8620648c46c0b14359d8f43736470067abbf4e3b",
   "events": {
     "e45748e689c8268fef46c18757132b62e0327d1d:trigger_imgs/savour-publishing-check.webp": {
       "id": "2026-10-29-210050-080c4e4f1f63",
@@ -20,6 +20,16 @@
       "file_sha256": "4eb0ead9b190af88cab1cd7993a3488cca7cd93f300598b47f4a794fc78e9731",
       "image_path": "savour/2026/10/2026-10-29-214048-cd6af2a45074/assets/20261029-214048-01.webp",
       "route": "page/2026/10/2026-10-29-214048-cd6af2a45074/"
+    },
+    "8620648c46c0b14359d8f43736470067abbf4e3b:trigger_imgs/IMG_2979.jpeg": {
+      "id": "2026-10-30-003114-739f6a505caf",
+      "commit": "8620648c46c0b14359d8f43736470067abbf4e3b",
+      "upload_path": "trigger_imgs/IMG_2979.jpeg",
+      "blob_sha": "83155cafed7221e4e8413ed1d33dd00b0ac48d75",
+      "sha256": "219adb065aeedc74ec0969df95ce10a261ebd0e6e83cf6a0bb8690196ff568d1",
+      "file_sha256": "3c08e6214fcb56e94df001d5597963e690bb8d017995c8723b326ff62f1bd3a1",
+      "image_path": "savour/2026/10/2026-10-30-003114-739f6a505caf/assets/20261030-003114-01.webp",
+      "route": "page/2026/10/2026-10-30-003114-739f6a505caf/"
     }
   }
 }
