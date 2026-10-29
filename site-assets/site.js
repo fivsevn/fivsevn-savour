@@ -8,7 +8,7 @@
   document.querySelectorAll('.phone').forEach(phone => {
     const time = `${pad(integer(0, 23))}:${pad(integer(0, 59))}`;
     const battery = integer(random.battery_min, random.battery_max);
-    const progress = (random.progress_min + unit() * (random.progress_max - random.progress_min)).toFixed(4);
+    const progress = (random.progress_min + unit() * (random.progress_max - random.progress_min)).toFixed(3);
     phone.querySelectorAll('[data-random="time"]').forEach(e => e.textContent = time);
     phone.querySelectorAll('[data-random="battery"]').forEach(e => e.textContent = battery);
     phone.querySelectorAll('[data-random="progress"]').forEach(e => e.textContent = progress);
