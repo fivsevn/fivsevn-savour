@@ -1,24 +1,91 @@
 # savour.fivsevn
 
-五月七日的美食分享：[savour.fivsevn.com](https://savour.fivsevn.com/)。代码、照片和内容均由这个仓库独立管理。
+The photo archive and static-site backend for [savour.fivsevn.com](https://savour.fivsevn.com/), 五月七日's food-sharing site.
 
-## 上传即发布
+Upload photos to [`trigger_imgs/`](trigger_imgs/). The repository converts them to WebP, saves one editable post per image, builds the phone-chat interface, and publishes through GitHub Pages. The [image inbox guide](trigger_imgs/README.md) provides concise everyday instructions in Chinese; this README covers publishing and maintenance in English.
 
-1. 打开 [trigger_imgs/ 上传入口](https://github.com/fivsevn/fivsevn-savour/upload/main/trigger_imgs)。
-2. 选择照片，提交到 `main`。一次可以上传多张。
-3. 等待 Actions 完成；仓库会自动命名、建文件夹、发布，并在核验线上内容后清空已处理的入口图片。
+## Repository layout
 
-支持 JPG/JPEG、PNG、WebP、GIF、HEIC/HEIF，也支持中文文件名和子文件夹。**一张照片就是一则帖子**。上传后自动转换为 WebP，改名为 `YYYYMMDD-HHMMSS-NN.webp`；帖子目录只保存归档 WebP。照片保留尺寸、方向和色彩信息，使用质量 85；PNG/GIF 使用无损转换并保留透明、动画和播放时间。已有 WebP 在归档中保留原字节，不重复压缩。网页对超过 1400px 的静态照片另生成适合显示的缩略图。
+```text
+trigger_imgs/                      Temporary image-upload inbox
+  README.md                        Chinese daily upload guide; not a post
+savour/YYYY/MM/{id}/
+  index.md                         Metadata and editable Markdown caption
+  assets/                          The post's archived WebP photo
+unpublished/                       Retained photos without a reliable publication date
+site-assets/                       Shared avatar, fonts, CSS, and browser behavior
+site-data/
+  history.json                     Established order and same-origin path aliases
+  originals.json                   Checksums of retained archive and shared assets
+.publishing/
+  state.json                       Upload cursor and processed image events
+  webp-conversion.json              Receipt for the last saved-image conversion batch
+  deployed.json                    File hashes from the last verified public deployment
+scripts/
+  image_codec.py                   Shared validation and WebP conversion
+  normalize_images.py              Normalize saved photos and update their references
+  ingest_github.py                  Import committed inbox snapshots into post packages
+  add_post.py                      Optional local post-creation helper
+  build.py                         Generate feed, pagination, post pages, and aliases
+  check.py                         Validate images, checksums, and internal references
+  verify_live.py                   Verify the public deployment against its build receipt
+  image_inbox.py                   Clear matching originals after verified publication
+  test_*.py                        Content, conversion, ingestion, and cleanup tests
+.github/workflows/build.yml        Build and deploy Savour workflow
+site.json                          Site title, pagination, and decorative-number ranges
+requirements.txt                   Pinned Python dependencies
+_site/                             Generated deployment artifact; ignored by Git
+```
 
-发布时间取上传提交的时间，转换为北京时间，之后保持固定。文件名、EXIF 和任务启动时间不决定发布日期。同一次上传重跑不会重复发帖，也不会覆盖已经手工修改的正文；新提交再次上传同名或同一张照片，视为新的发布。
+Edit saved packages under `savour/`. Generated HTML and display thumbnails belong to `_site/` and are rebuilt from source. All runtime images and fonts are served by this site; building and publishing do not contact WordPress or the retired assets repository.
 
-想配文字时，在 GitHub 提交界面的 **可选详细说明（extended description）** 里填写 Markdown；同次上传的每张照片都会收到这段正文。第一行提交摘要不会变成正文。也可以先上传，再单独编辑各帖 `index.md`。不需要 tags。
+## Publish images
 
-失败时入口图片保留，打开 [Actions](https://github.com/fivsevn/fivsevn-savour/actions/workflows/build.yml) 查看原因并重新运行；不要为重试再次上传相同图片。若发布期间又有新上传，后续任务会继续读取，旧任务不会覆盖或清走新图片。
+### Upload through GitHub
 
-## 编辑、隐藏和删除
+1. Open the [image upload page](https://github.com/fivsevn/fivsevn-savour/upload/main/trigger_imgs).
+2. Select one or more photos. Keep their original filenames; no timestamp, conversion, or folder creation is needed on your device.
+3. Use the commit summary for an operation label. Put an optional Markdown caption in **extended description**, below the summary line. Leave it empty for image-only posts.
+4. Commit directly to `main`.
+5. Wait for [Build and deploy Savour](https://github.com/fivsevn/fivsevn-savour/actions/workflows/build.yml) to succeed, then check the [website](https://savour.fivsevn.com/), the individual post, and its large image.
 
-每帖位于 `savour/YYYY/MM/{id}/`，内有 `index.md` 和自己的 `assets/`：
+Each image becomes a separate post. Images uploaded in the same commit share its caption. The summary line does not become post text. No tags are required.
+
+### Use Working Copy or a phone shortcut
+
+Configure the shortcut to use **fivsevn-savour**, save images into `trigger_imgs/`, and commit and push to this repository's `main` branch. If the shortcut collects a caption, write it to the commit's extended description.
+
+Before each upload, pull the latest `main`. The publishing bot creates commits containing new packages, publication state, and inbox cleanup; the next pull brings those changes back to the phone. Then save, commit, and push the new photos. This repository supplies the publishing automation, not the shortcut itself.
+
+### Dates, names, and duplicate handling
+
+- Publication time comes from the upload commit's **committer timestamp**, converted to `Asia/Shanghai` and saved with its UTC offset. EXIF dates, original filenames, and workflow start times do not determine it.
+- A package ID combines that timestamp with a digest of the upload commit and path. Its directory is `savour/YYYY/MM/{id}/`.
+- Archived media is named `assets/YYYYMMDD-HHMMSS-NN.webp`. Uploaded paths are sorted to assign stable batch numbers.
+- The same commit and path is processed once. Retrying it does not duplicate a post or overwrite a caption edited afterward.
+- Uploading the same filename or identical image bytes in a **new commit** creates a new post. To edit an existing post, edit its saved package instead of uploading it again.
+- Existing historical IDs, dates, captions, ordering, and post URLs remain stable. Image conversion changes the media filename and reference, not the post identity.
+
+## Image conversion and storage
+
+Supported inputs are JPG/JPEG, PNG, WebP, GIF, HEIC, and HEIF, with case-insensitive extensions. Unicode filenames and nested inbox folders are supported.
+
+| Input | Archived WebP behavior |
+| --- | --- |
+| JPEG and HEIC/HEIF photos | Quality 85, original display dimensions, corrected orientation, retained ICC color profile and applicable EXIF metadata |
+| PNG graphics | Lossless WebP with transparency; animated PNG frames and timing are retained |
+| GIF animations | Lossless animated WebP retaining frames, timing, transparency, and loop behavior |
+| Existing WebP | Validated and retained byte-for-byte; no archive recompression |
+
+MPO and HEIF auxiliary images, such as phone HDR gain maps, are treated as still-photo data rather than animation frames. Saved packages contain archived WebP media, not an additional JPEG/PNG copy. Previous uploads remain recoverable from Git history.
+
+For static images larger than 1400 pixels on their longest edge, the website build creates a smaller `display.webp` thumbnail in `_site/`. The archived WebP remains untouched, and the individual post links to that larger image. Smaller WebP images and animations are served directly. Generated display thumbnails are not committed to the content archive.
+
+`normalize_images.py` also handles saved packages added manually, including hidden and draft posts. It validates the whole batch, stages converted files, updates image references and retained-asset checksums, and replaces old-format files only as part of the complete transaction. An unchanged WebP archive is left alone. Its conversion receipt is retained on subsequent runs that need no conversion.
+
+## Captions and saved posts
+
+A package contains one `index.md` and its own `assets/` directory:
 
 ```yaml
 ---
@@ -28,34 +95,96 @@ title: 29 Oct, 2026 12:00
 author: 五月七日
 status: published
 image: assets/20261029-120000-01.webp
-alt: 一碗刚煮好的面
+alt: A bowl of freshly cooked noodles
 ---
 
-这里填写正文，可使用 Markdown 和链接。
+Write the caption here. **Markdown** and [named links](https://example.com/) are supported.
 ```
 
-发布后保持 ID、年月和日期不变，网址就不会变化。正文在详情页的另一条消息里显示，没有正文则不显示空气泡。`status: hidden` 或 `draft` 隐藏帖子；删除整个帖子文件夹即可删除记录。正常 Git 历史仍可用于恢复误删。
+The frontmatter `image` is the post's single photo. Keep caption text after the closing `---`; do not insert another Markdown image into the body. On the individual page, the photo appears as one chat message and a nonempty caption as another. An empty caption produces no extra bubble.
 
-本地批量添加也可使用 `scripts/add_post.py`；日常 GitHub 上传无需运行任何脚本。
+| Field | Meaning |
+| --- | --- |
+| `id` | Stable identity; must match the package directory name |
+| `date` | Fixed publication timestamp with a timezone offset; its year and month must match the parent directories |
+| `title` | Displayed date label or heading, separate from the saved timestamp |
+| `author` | Author name; generated uploads use 五月七日 |
+| `status` | `published`, `hidden`, or `draft` |
+| `image` | Package-relative photo path inside `assets/` |
+| `alt` | Alternative text for the photo |
 
-## 页面和构建
+To revise a caption, edit the saved `index.md`, commit, and push. Keep the ID and date unchanged to preserve the permalink and chronological position. Change `status` to `hidden` or `draft` to exclude a post from the website; delete its entire package directory to remove it. These operations do not erase the public repository's Git history.
 
-列表手机等高、居中，首页随整页滚动；详情使用可见屏幕空间，只有聊天区域可滚动，顶部箭头返回来源分页。消息字号统一为 9px，间距为 22px。每次打开独立随机时间、电量和三位小数的摄取进度，例如 `704.739%`；停留、滚动或调整窗口不会重抽。随机范围和分页大小位于 `site.json`，真实发布日期不会随机。
+The source archive has no tag requirement or tag-filter pages. Historic WordPress/source URL fields are not part of current post frontmatter.
+
+## Publishing and inbox cleanup
+
+The workflow runs on relevant pushes to `main` and supports manual runs. It serializes publication and checks out the latest branch with complete Git history.
+
+1. Install pinned dependencies and run the test suite.
+2. Normalize saved photos, then import unprocessed inbox changes from their immutable Git commit snapshots.
+3. Read the actual Pages base path, build the site, and validate source integrity and generated references.
+4. Commit saved packages, updated checksums, conversion records, and the upload cursor together, using an ordinary non-force push.
+5. Upload the artifact and deploy it through GitHub Pages.
+6. Compare the public build receipt and required page/media bytes with the local artifact.
+7. Confirm that no newer remote commit has arrived, clear only matching verified inbox originals, and record the verified deployment.
+
+Import and deployment happen in the same workflow run. Publishing-bot commits do not need to trigger a second build to finish the original upload.
+
+The inbox is temporary. An original is removed only when its archived package has been saved and publicly verified. Cleanup checks the uploaded source digest and the saved WebP digest separately. A failed conversion, build, deployment, or verification retains the inbox file. A newer upload or a changed saved image is not cleared on the strength of an older matching event.
+
+The source commit cursor and per-event records prevent retries from recreating posts. They also preserve manual caption edits. The newest event owns a reused inbox path, including when the new bytes happen to match an earlier upload.
+
+## Recover from a failed run
+
+Start with the failed step in [Actions](https://github.com/fivsevn/fivsevn-savour/actions/workflows/build.yml). Retry the latest relevant workflow after resolving the cause; do not upload the same photo again solely to retry a deployment.
+
+| Failure | What to do |
+| --- | --- |
+| Invalid or unsupported input | Replace or remove the bad inbox file and push. A superseded invalid historical upload can then be skipped; a current invalid upload still blocks its batch. |
+| A newer commit arrived or a push was rejected | Let the latest queued run continue, or rerun against the latest `main`. Pull bot commits before the next phone upload. Do not force-push over them. |
+| Public deployment or media verification failed | Check Pages and rerun the latest workflow. Matching inbox originals remain until verification succeeds. |
+| A retained image checksum changed | Restore an accidental change. For a deliberate replacement of an image tracked by `site-data/originals.json`, review and update that entry's path, byte count, and SHA-256. |
+| The upload cursor is missing or no longer on main's first-parent history | Review or restore Git history before changing publication state. Do not blindly reset the cursor to replay uploads. |
+
+## Local development and maintenance
 
 ```sh
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 python -m unittest discover -s scripts -p 'test_*.py'
+python scripts/normalize_images.py
 python scripts/build.py
 python scripts/check.py
 python -m http.server 8000 --directory _site
 ```
 
-输出 `_site/` 不提交。默认空路径用于正式域名，`--base-path /fivsevn-savour` 支持项目路径预览；Actions 自动读取 Pages 的实际路径。工作流在同一次运行内完成导入、保存帖子与游标、部署、公开字节核验和入口清理。全部图片与字体均由本站提供，构建不访问 WordPress 或旧图片仓库。
+The default build uses the domain root. Use `--base-path /fivsevn-savour` for a GitHub project-path preview and pass the same value to `scripts/check.py`. Production Actions reads the configured Pages path automatically. Build output is generated under `_site/` and should not be committed.
 
-`site-data/history.json` 只保存既有排序和同源旧路径的跳转映射，保持历史网址和顺序稳定；`site-data/originals.json` 校验保留的图片和公共资源。帖子中不再保留旧来源 URL 或 WordPress 字段。`unpublished/IMG_7310.webp` 尚无可靠发布日期，保留归档 WebP 但不自动发布。
+For optional local package creation:
 
-`.publishing/state.json` 是上传事件游标及已保存图片摘要，不要手工重置。`.publishing/deployed.json` 记录已核验的线上文件，用于确认发布后再清理入口；这些记录不显示在网页上。GitHub Pages 域名和 HTTPS 继续由 Pages 管理，构建不修改 DNS。
+```sh
+python scripts/add_post.py meal.jpg dessert.heic \
+  --date '2026-10-29T12:00:00+08:00' --text-file caption.md
+```
 
-图片转换与源文件清理同一次提交完成，失败不会提交半套转换。上传入口的原文件在公开页面与归档 WebP 都核验成功后清走；Git 历史仍可恢复之前上传的原文件。
+The helper converts each input to WebP and creates a separate package. Normal GitHub/phone uploading does not require running it.
+
+### Settings and state
+
+- `site.json` controls the site title, feed page size, and random battery/progress ranges.
+- `site-data/history.json` retains the established order for equal-time historic posts and same-origin path aliases. It does not supply external media.
+- `site-data/originals.json` verifies the retained archive photos, avatar, and fonts. Its photo entries now refer to archived WebP files.
+- `unpublished/IMG_7310.webp` has no reliable original publication date. It is retained without creating an undated post.
+- `.publishing/state.json` records the Git cursor, event identities, source digests, saved WebP digests, and package paths. Do not hand-reset it during routine maintenance.
+- `.publishing/webp-conversion.json` records the last saved-image conversion batch; a no-op normalization does not rewrite it.
+- `.publishing/deployed.json` records the last verified public file hashes. `_site/build-receipt.json` describes the current artifact, and `_site/.verified.json` is a local verification marker used before cleanup.
+
+### Phone interface
+
+Feed phones have uniform frames and the page scrolls as a whole. The individual page keeps one frame within the visible viewport and scrolls its chat area when needed; its header arrow returns to the source feed and post position.
+
+Decorative time, battery, and eating progress are randomized independently for each phone once per document load. Progress has three decimal places, such as `704.739%`. Staying on the page, scrolling, or resizing does not redraw these values. Real publication dates and URLs never use the decorative random numbers.
+
+GitHub Pages manages the custom domain and HTTPS. The build does not create DNS records or change domain settings. Flux provides a reference for repository publishing conventions; Savour's phone interface and implementation remain independent.
