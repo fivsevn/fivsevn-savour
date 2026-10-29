@@ -39,7 +39,11 @@ def read_posts(root=ROOT):
         m.update(source=source,image_path=image,body=body.strip(),body_html=str(soup),datetime=date)
         m['route']=f'page/{source.parent.relative_to(root/"savour").as_posix()}/'
         posts.append(m)
-    return sorted(posts,key=lambda p:(p['datetime'],p['id']),reverse=True)
+    # Equal-second WordPress records have an observed order that is not always
+    # numeric ID order. Retain that order from the immutable migration inventory.
+    inventory=root/'migration/inventory.json'
+    source_order={p['id']:i for i,p in enumerate(json.loads(inventory.read_text())['posts'])} if inventory.exists() else {}
+    return sorted(posts,key=lambda p:(p['datetime'],-source_order.get(p['id'],-1),p['id']),reverse=True)
 
 def build(root=ROOT, output=None, base_path=''):
     output=Path(output or root/'_site')
