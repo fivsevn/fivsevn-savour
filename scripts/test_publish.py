@@ -54,6 +54,25 @@ class PublicationTests(unittest.TestCase):
         self.assertFalse(self.source.exists())
         self.assertEqual(self.saved.read_bytes(), self.media)
 
+    def test_uploaded_original_and_saved_webp_can_have_different_bytes(self):
+        converted = b'converted WebP bytes'
+        self.saved.write_bytes(converted)
+        state = copy.deepcopy(self.state)
+        state['events']['event']['file_sha256'] = hashlib.sha256(converted).hexdigest()
+        (self.root / '.publishing/state.json').write_text(json.dumps(state))
+        media_path = self.route + 'assets/photo.jpg'
+        (self.root / '_site' / media_path).write_bytes(converted)
+        self.public[media_path] = converted
+        receipt_path = self.root / '_site/build-receipt.json'
+        receipt = json.loads(receipt_path.read_text())
+        receipt['files'][media_path] = hashlib.sha256(converted).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.public['build-receipt.json'] = receipt_path.read_bytes()
+        self.mark()
+        self.assertEqual(clear_verified(self.root), (1, len(self.media)))
+        self.assertFalse(self.source.exists())
+        self.assertEqual(self.saved.read_bytes(), converted)
+
     def test_failed_public_verification_invalidates_old_marker(self):
         self.mark()
         self.public[self.route + 'index.html'] = b'wrong public page'
