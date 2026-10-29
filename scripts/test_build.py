@@ -25,5 +25,8 @@ class ContentTests(unittest.TestCase):
         data=json.loads((ROOT/'migration/inventory.json').read_text())
         self.assertEqual(data['total_pages'],12);self.assertEqual(data['page_counts'],[11]*11+[4,0]);self.assertEqual(len(data['posts']),125)
         self.assertTrue(all(len(p['images'])==len(p['detail_images'])==1 and not any(p['detail_text']) for p in data['posts']))
+        migrated=[p['legacy']['wordpress_id'] for p in read_posts() if p.get('legacy',{}).get('wordpress_id')]
+        expected=[p['wp_id'] for p in data['posts'] if (ROOT/p['content_path']).exists() and yaml.safe_load((ROOT/p['content_path']).read_text().split('---',2)[1])['status']=='published']
+        self.assertEqual(migrated,expected)
 
 if __name__=='__main__':unittest.main()
