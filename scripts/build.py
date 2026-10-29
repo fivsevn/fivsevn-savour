@@ -90,16 +90,16 @@ def build(root=ROOT, output=None, base_path=''):
         messages=msg(photo+progress)
         if detail:
             if p['body']:messages+=msg(p['body_html'],'prose')
-            messages+=f'<p class="post-date">{E(p.get("title",str(p["date"])))}<br><a href="{return_url}" data-return>返回第 {p["list_page"]} 页</a></p>'
+            messages+=f'<p class="post-date">{E(p.get("title",str(p["date"])))}</p>'
         else:
             messages+=msg(f'<p>五月七日发来一条链接：</p><div class="link-line"><a class="post-link" href="{url(p["route"])}" title="WordPress 发布日期：{E(str(p["date"]))}">{E(p.get("title",str(p["date"])))}</a><span>.com</span></div>','link-message')
-        return f'<article class="phone post-phone" id="{p["id"]}" data-published="{E(str(p["date"]))}">{dots}{status()}{header(return_url if detail else feed(1),detail)}<div class="messages">{messages}</div>{composer("｜吃到了。" if detail else "｜下滑继续吃。")}</article>'
+        return f'<article class="phone post-phone" id="{p["id"]}" data-published="{E(str(p["date"]))}">{dots}{status()}{header(return_url if detail else feed(1),detail)}<div class="messages" tabindex="0" role="region" aria-label="聊天消息">{messages}</div>{composer("｜吃到了。" if detail else "｜下滑继续吃。")}</article>'
     def lock(end=False):
         notice=('<div class="notification"><span class="emoji">🐽</span><span>吃饱哩！<a class="home-link" href="https://fivsevn.com/">返回主页</a>。</span></div>' if end else (f'<div class="notification"><span class="emoji">🐷</span><span>五月七日饿了，并发来 <a href="#first-post">1</a> 条信息！</span></div>'*2+'<div class="notification"><span class="emoji">😠</span><span>不饿！<a class="home-link" href="https://fivsevn.com/">返回主页</a>。</span></div>'))
         return f'<section class="phone lock {"end" if end else "start"}" aria-label="{"已吃饱" if end else "下滑开始吃"}锁屏">{dots}{status(True)}<div class="lock-symbol" aria-hidden="true">🔒</div><div class="charged"><span class="battery-value" data-random="battery">0</span><span>% Charged</span></div><div class="lock-clock random-time" data-random="time">00:00</div><div class="lock-space" aria-hidden="true"></div><div class="notifications">{notice}</div><a class="swipe" href="{"#top" if end else "#first-post"}">{"已吃饱" if end else "下滑开始吃<br>↓↓↓"}</a></section>'
     def footer_chat():
         messages=''.join(msg(x) for x in ['<p>五月七日发来一条链接：</p><div class="link-line">[ <a href="https://fivsevn.com/">fivsevn</a> .com ]</div>','噢！等等😈','<p>五月七日分享了一个地址：</p><div class="link-line">[ <a href="https://fivsevn.com/57store">五月七日便利店</a> ]</div>','帮我带罐啤酒🍺','还要一个小饭团🍙！！'])
-        return f'<section class="phone footer-message" aria-label="五月七日的留言">{dots}{status()}{header(feed(1))}<div class="messages">{messages}</div>{composer("｜啤酒卖完了。")}</section>'
+        return f'<section class="phone footer-message" aria-label="五月七日的留言">{dots}{status()}{header(feed(1))}<div class="messages" tabindex="0" role="region" aria-label="聊天消息">{messages}</div>{composer("｜啤酒卖完了。")}</section>'
     def pagination(n):
         links=[]
         if n>1:links.append(f'<a href="{feed(n-1)}" rel="prev" aria-label="上一页">←</a>')
