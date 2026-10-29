@@ -87,10 +87,12 @@ def build(root=ROOT, output=None, base_path=''):
             webp=im.format=='WEBP'
             animated=im.format in {'GIF','PNG','WEBP'} and getattr(im,'is_animated',False)
             im=ImageOps.exif_transpose(im).convert('RGB');p['width'],p['height']=im.size
-            if not webp and not animated:
-                im.thumbnail((1400,1400));im.save(dest/'assets/display.webp','WEBP',quality=88,method=6)
+            preview=not animated and (not webp or max(im.size)>1400)
+            display_name='display-preview.webp' if p['image_path'].name=='display.webp' else 'display.webp'
+            if preview:
+                im.thumbnail((1400,1400));im.save(dest/'assets'/display_name,'WEBP',quality=88,method=6)
         p['original_image']=p['route']+'assets/'+p['image_path'].name
-        p['display_image']=p['original_image'] if webp or animated else p['route']+'assets/display.webp'
+        p['display_image']=p['route']+'assets/'+display_name if preview else p['original_image']
     def phone(p,detail=False):
         return_url=feed(p['list_page'])+'#'+p['id']
         photo=f'<img class="food-photo" src="{url(p["display_image"])}" width="{p["width"]}" height="{p["height"]}" alt="{E(p.get("alt",p.get("title","美食照片")),quote=True)}" loading="lazy" decoding="async">'
