@@ -4,6 +4,6 @@ date: '2026-07-18T21:32:11+08:00'
 title: 18 Jul, 2026 22:31
 author: 五月七日
 status: published
-image: assets/IMG_8595.jpeg
+image: "assets/IMG_8595.webp"
 alt: 18 Jul, 2026 22:31
 ---
