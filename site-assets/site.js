@@ -28,6 +28,14 @@
       }
     } catch (_) {}
   });
+  // On a detail page the screen scrolls, while the surrounding frame stays still.
+  document.querySelectorAll('.detail .composer-up').forEach(a => a.addEventListener('click', event => {
+    event.preventDefault();
+    a.closest('.phone').querySelector('.messages').scrollTo({
+      top: 0,
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    });
+  }));
   // WordPress pagination bookmarks copied onto the new host remain useful.
   const legacyPage = new URLSearchParams(location.search).get('query-18-page');
   if (legacyPage && /^\d+$/.test(legacyPage) && Number(legacyPage) > 1 && Number(legacyPage) <= config.total_pages) {
