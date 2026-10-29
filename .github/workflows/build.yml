@@ -2,38 +2,77 @@ name: Build and deploy Savour
 on:
   push:
     branches: [main]
+    paths:
+      - 'trigger_imgs/**'
+      - 'savour/**'
+      - 'site-data/**'
+      - 'site-assets/**'
+      - 'scripts/**'
+      - '.publishing/**'
+      - 'requirements.txt'
+      - 'site.json'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 concurrency:
   group: savour-pages
+  queue: max
   cancel-in-progress: false
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Verify content and publishing behavior
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Import uploaded images from their committed snapshots
+        run: python scripts/ingest_github.py
       - id: pages
         uses: actions/configure-pages@v5
       - run: python scripts/build.py --base-path "${{ steps.pages.outputs.base_path }}"
       - run: python scripts/check.py --base-path "${{ steps.pages.outputs.base_path }}"
+      - name: Save posts and upload cursor together
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add savour .publishing/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'publish: Import uploaded Savour photos'
+            git push origin HEAD:main
+          fi
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify public pages and images
+        run: python scripts/verify_live.py
+      - name: Retain newer uploads and clear only verified originals
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse FETCH_HEAD)" ]; then
+            echo 'A newer commit arrived. Inbox retained; the next queued run will continue.'
+            exit 1
+          fi
+          python scripts/image_inbox.py
+          git add .publishing/deployed.json
+          git add -u trigger_imgs
+          if ! git diff --cached --quiet; then
+            git commit -m 'publish: Record verified deployment and clear image inbox'
+            git push origin HEAD:main
+          fi
