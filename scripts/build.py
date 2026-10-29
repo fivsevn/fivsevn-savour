@@ -94,7 +94,7 @@ def build(root=ROOT, output=None, base_path=''):
             if p['body']:messages+=msg(p['body_html'],'prose')
             messages+=f'<p class="post-date">{E(p.get("title",str(p["date"])))}</p>'
         else:
-            messages+=msg(f'<p>五月七日发来一条链接：</p><div class="link-line"><a class="post-link" href="{url(p["route"])}" title="WordPress 发布日期：{E(str(p["date"]))}">{E(p.get("title",str(p["date"])))}</a><span>.com</span></div>','link-message')
+            messages+=msg(f'<p>五月七日发来一条链接：</p><div class="link-line">[ <a class="post-link" href="{url(p["route"])}" title="WordPress 发布日期：{E(str(p["date"]))}">{E(p.get("title",str(p["date"])))}</a><span>.com</span> ]</div>','link-message')
         return f'<article class="phone post-phone" id="{p["id"]}" data-published="{E(str(p["date"]))}">{dots}{status()}{header(return_url if detail else feed(1),detail)}<div class="messages" {'tabindex="0"' if detail else ''} role="region" aria-label="聊天消息">{messages}</div>{composer("｜吃到了。" if detail else "｜下滑继续吃。")}</article>'
     def lock(end=False):
         notice=('<div class="notification"><span class="emoji">🐽</span><span>吃饱哩！<a class="home-link" href="https://fivsevn.com/">返回主页</a>。</span></div>' if end else (f'<div class="notification"><span class="emoji">🐷</span><span>五月七日饿了，并发来 <a href="#first-post">1</a> 条信息！</span></div>'*2+'<div class="notification"><span class="emoji">😠</span><span>不饿！<a class="home-link" href="https://fivsevn.com/">返回主页</a>。</span></div>'))
