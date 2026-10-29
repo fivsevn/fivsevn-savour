@@ -7,6 +7,11 @@ from urllib.parse import urlparse
 import markdown, yaml
 from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
 
 ROOT = Path(__file__).resolve().parents[1]
 E = html.escape
@@ -39,10 +44,9 @@ def read_posts(root=ROOT):
         m.update(source=source,image_path=image,body=body.strip(),body_html=str(soup),datetime=date)
         m['route']=f'page/{source.parent.relative_to(root/"savour").as_posix()}/'
         posts.append(m)
-    # Equal-second WordPress records have an observed order that is not always
-    # numeric ID order. Retain that order from the immutable migration inventory.
-    inventory=root/'migration/inventory.json'
-    source_order={p['id']:i for i,p in enumerate(json.loads(inventory.read_text())['posts'])} if inventory.exists() else {}
+    # Keep the established order of records sharing the exact same timestamp.
+    history=root/'site-data/history.json'
+    source_order={ident:i for i,ident in enumerate(json.loads(history.read_text())['order'])} if history.exists() else {}
     return sorted(posts,key=lambda p:(p['datetime'],-source_order.get(p['id'],-1),p['id']),reverse=True)
 
 def build(root=ROOT, output=None, base_path=''):
@@ -80,10 +84,12 @@ def build(root=ROOT, output=None, base_path=''):
         dest=output/p['route'];(dest/'assets').mkdir(parents=True,exist_ok=True)
         shutil.copy2(p['image_path'],dest/'assets'/p['image_path'].name)
         with Image.open(p['image_path']) as im:
+            animated=getattr(im,'is_animated',False)
             im=ImageOps.exif_transpose(im).convert('RGB');p['width'],p['height']=im.size
-            im.thumbnail((1400,1400));im.save(dest/'assets/display.webp','WEBP',quality=88,method=6)
-        p['display_image']=p['route']+'assets/display.webp'
+            if not animated:
+                im.thumbnail((1400,1400));im.save(dest/'assets/display.webp','WEBP',quality=88,method=6)
         p['original_image']=p['route']+'assets/'+p['image_path'].name
+        p['display_image']=p['original_image'] if animated else p['route']+'assets/display.webp'
     def phone(p,detail=False):
         return_url=feed(p['list_page'])+'#'+p['id']
         photo=f'<img class="food-photo" src="{url(p["display_image"])}" width="{p["width"]}" height="{p["height"]}" alt="{E(p.get("alt",p.get("title","美食照片")),quote=True)}" loading="lazy" decoding="async">'
@@ -94,7 +100,7 @@ def build(root=ROOT, output=None, base_path=''):
             if p['body']:messages+=msg(p['body_html'],'prose')
             messages+=f'<p class="post-date">{E(p.get("title",str(p["date"])))}</p>'
         else:
-            messages+=msg(f'<p>五月七日发来一条链接：</p><div class="link-line">[ <a class="post-link" href="{url(p["route"])}" title="WordPress 发布日期：{E(str(p["date"]))}">{E(p.get("title",str(p["date"])))}</a><span>.com</span> ]</div>','link-message')
+            messages+=msg(f'<p>五月七日发来一条链接：</p><div class="link-line">[ <a class="post-link" href="{url(p["route"])}" title="发布日期：{E(str(p["date"]))}">{E(p.get("title",str(p["date"])))}</a><span>.com</span> ]</div>','link-message')
         return f'<article class="phone post-phone" id="{p["id"]}" data-published="{E(str(p["date"]))}">{dots}{status()}{header(return_url if detail else feed(1),detail)}<div class="messages" {'tabindex="0"' if detail else ''} role="region" aria-label="聊天消息">{messages}</div>{composer("｜吃到了。" if detail else "｜下滑继续吃。")}</article>'
     def lock(end=False):
         notice=('<div class="notification"><span class="emoji">🐽</span><span>吃饱哩！<a class="home-link" href="https://fivsevn.com/">返回主页</a>。</span></div>' if end else (f'<div class="notification"><span class="emoji">🐷</span><span>五月七日饿了，并发来 <a href="#first-post">1</a> 条信息！</span></div>'*2+'<div class="notification"><span class="emoji">😠</span><span>不饿！<a class="home-link" href="https://fivsevn.com/">返回主页</a>。</span></div>'))
@@ -118,8 +124,10 @@ def build(root=ROOT, output=None, base_path=''):
         save(p['route']+'index.html',shell(phone(p,True),p.get('title',p['id'])+' · '+cfg['title'],True))
     def redirect(path,target):
         save(path.rstrip('/')+'/index.html',f'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={E(target)}"><title>前往 Savour</title><a href="{E(target)}">前往这则美食分享</a></html>')
-    for p in posts:
-        if p.get('archive_url'): redirect(urlparse(p['archive_url']).path.strip('/'),url(p['route']))
+    history=root/'site-data/history.json'
+    routes={p['id']:p['route'] for p in posts}
+    for path,ident in (json.loads(history.read_text()).get('aliases',{}) if history.exists() else {}).items():
+        if ident in routes: redirect(path,url(routes[ident]))
     save('foodie/index.html',shell('<p class="broken-page"><a href="'+feed(1)+'">下滑开始吃 →</a></p>') .replace('</body>','<script>if(!location.search)location.replace('+json.dumps(feed(1))+');</script></body>'))
     save('404.html',shell('<div class="broken-page">这条消息还没找到。<p><a href="'+feed(1)+'">返回 Savour 继续吃 →</a></p></div>'))
     save('.nojekyll','')
