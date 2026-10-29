@@ -40,6 +40,8 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Verify content and publishing behavior
         run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Normalize saved photos to WebP
+        run: python scripts/normalize_images.py
       - name: Import uploaded images from their committed snapshots
         run: python scripts/ingest_github.py
       - id: pages
@@ -50,9 +52,9 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add savour .publishing/state.json
+          git add savour unpublished site-data .publishing/state.json .publishing/webp-conversion.json
           if ! git diff --cached --quiet; then
-            git commit -m 'publish: Import uploaded Savour photos'
+            git commit -m 'publish: Normalize and import Savour photos'
             git push origin HEAD:main
           fi
       - uses: actions/upload-pages-artifact@v4
