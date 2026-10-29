@@ -8,7 +8,7 @@
 2. 选择照片，提交到 `main`。一次可以上传多张。
 3. 等待 Actions 完成；仓库会自动命名、建文件夹、发布，并在核验线上内容后清空已处理的入口图片。
 
-支持 JPG/JPEG、PNG、WebP、GIF、HEIC/HEIF，也支持中文文件名和子文件夹。**一张照片就是一则帖子**。原图按原始字节保存，自动改名为 `YYYYMMDD-HHMMSS-NN.扩展名`；展示图自动生成 WebP，动画保留动画。
+支持 JPG/JPEG、PNG、WebP、GIF、HEIC/HEIF，也支持中文文件名和子文件夹。**一张照片就是一则帖子**。上传后自动转换为 WebP，改名为 `YYYYMMDD-HHMMSS-NN.webp`；帖子目录只保存归档 WebP。照片保留尺寸、方向和色彩信息，使用质量 85；PNG/GIF 使用无损转换并保留透明、动画和播放时间。已有 WebP 保留原字节，不重复压缩。
 
 发布时间取上传提交的时间，转换为北京时间，之后保持固定。文件名、EXIF 和任务启动时间不决定发布日期。同一次上传重跑不会重复发帖，也不会覆盖已经手工修改的正文；新提交再次上传同名或同一张照片，视为新的发布。
 
@@ -27,7 +27,7 @@ date: '2026-10-29T12:00:00+08:00'
 title: 29 Oct, 2026 12:00
 author: 五月七日
 status: published
-image: assets/20261029-120000-01.jpg
+image: assets/20261029-120000-01.webp
 alt: 一碗刚煮好的面
 ---
 
@@ -54,6 +54,8 @@ python -m http.server 8000 --directory _site
 
 输出 `_site/` 不提交。默认空路径用于正式域名，`--base-path /fivsevn-savour` 支持项目路径预览；Actions 自动读取 Pages 的实际路径。工作流在同一次运行内完成导入、保存帖子与游标、部署、公开字节核验和入口清理。全部图片与字体均由本站提供，构建不访问 WordPress 或旧图片仓库。
 
-`site-data/history.json` 只保存既有排序和同源旧路径的跳转映射，保持历史网址和顺序稳定；`site-data/originals.json` 校验保留的图片和公共资源。帖子中不再保留旧来源 URL 或 WordPress 字段。`unpublished/IMG_7310.jpg` 尚无可靠发布日期，保留原图但不自动发布。
+`site-data/history.json` 只保存既有排序和同源旧路径的跳转映射，保持历史网址和顺序稳定；`site-data/originals.json` 校验保留的图片和公共资源。帖子中不再保留旧来源 URL 或 WordPress 字段。`unpublished/IMG_7310.webp` 尚无可靠发布日期，保留归档 WebP 但不自动发布。
 
 `.publishing/state.json` 是上传事件游标及已保存图片摘要，不要手工重置。`.publishing/deployed.json` 记录已核验的线上文件，用于确认发布后再清理入口；这些记录不显示在网页上。GitHub Pages 域名和 HTTPS 继续由 Pages 管理，构建不修改 DNS。
+
+图片转换与源文件清理同一次提交完成，失败不会提交半套转换。上传入口的原文件在公开页面与归档 WebP 都核验成功后清走；Git 历史仍可恢复之前上传的原文件。
