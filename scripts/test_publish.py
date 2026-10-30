@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from image_inbox import clear_verified
 from verify_live import verify
+from site_post_metadata import dump_frontmatter, normalize_metadata, read_frontmatter
 
 
 class PublicationTests(unittest.TestCase):
@@ -21,7 +22,9 @@ class PublicationTests(unittest.TestCase):
         for p in [self.source, self.saved]:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_bytes(self.media)
-        self.saved.parent.parent.joinpath('index.md').write_text('---\nstatus: published\n---\n')
+        self.meta=normalize_metadata(dict(id=self.saved.parent.parent.name,date='2026-10-29T12:00:00+08:00',
+                                        title='Lunch',status='published',image='assets/photo.jpg'),site='savour')
+        self.saved.parent.parent.joinpath('index.md').write_text(dump_frontmatter(self.meta))
         state = {'version': 1, 'events': {'event': {
             'upload_path': self.source.relative_to(self.root).as_posix(),
             'image_path': self.saved.relative_to(self.root).as_posix(),
@@ -89,12 +92,28 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(clear_verified(self.root)[0], 0)
         self.assertEqual(self.source.read_bytes(), b'new upload')
 
+    def test_private_active_post_is_not_cleared(self):
+        self.mark()
+        self.meta['visibility']='private'
+        self.saved.parent.parent.joinpath('index.md').write_text(dump_frontmatter(self.meta))
+        self.assertEqual(clear_verified(self.root)[0],0)
+        self.assertTrue(self.source.exists())
+
+    def test_public_active_status_is_cleared_after_verification(self):
+        self.meta['status']='active'
+        self.saved.parent.parent.joinpath('index.md').write_text(dump_frontmatter(self.meta))
+        self.mark()
+        self.assertEqual(clear_verified(self.root)[0],1)
+        self.assertFalse(self.source.exists())
+
     def test_identical_reupload_is_not_cleared_by_an_older_published_post(self):
         self.mark()
         newer = self.root / 'savour/2026/10/2026-10-29-120001-new/assets/photo.jpg'
         newer.parent.mkdir(parents=True)
         newer.write_bytes(self.media)
-        newer.parent.parent.joinpath('index.md').write_text('---\nstatus: hidden\n---\n')
+        meta=normalize_metadata(dict(id=newer.parent.parent.name,date='2026-10-29T12:00:01+08:00',
+                                    title='Hidden photo',status='hidden',image='assets/photo.jpg'),site='savour')
+        newer.parent.parent.joinpath('index.md').write_text(dump_frontmatter(meta))
         state = copy.deepcopy(self.state)
         event = copy.deepcopy(state['events']['event'])
         event['image_path'] = newer.relative_to(self.root).as_posix()

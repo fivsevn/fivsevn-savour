@@ -3,7 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
-import yaml
+from site_post_metadata import is_published, read_frontmatter
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,8 +42,8 @@ def clear_verified(root=ROOT):
         if digest(source) != event['sha256'] or digest(saved) != saved_sha:
             continue  # A newer upload or manually edited saved image is never removed.
         package = saved.parent.parent
-        meta = yaml.safe_load((package / 'index.md').read_text().split('---', 2)[1])
-        if meta.get('status') != 'published':
+        meta, _ = read_frontmatter(package / 'index.md')
+        if not is_published(meta):
             continue
         page = event['route'] + 'index.html'
         media = event['route'] + 'assets/' + saved.name

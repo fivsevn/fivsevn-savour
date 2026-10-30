@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Deterministic static Savour builder. No network access."""
 import argparse, hashlib, html, json, re, shutil
-from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
-import markdown, yaml
+import markdown
 from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
+from site_post_metadata import (is_published, metadata_view, published_datetime,
+                                read_frontmatter, validate_metadata)
 try:
     from pillow_heif import register_heif_opener
     register_heif_opener()
@@ -19,20 +20,16 @@ E = html.escape
 def read_posts(root=ROOT):
     posts=[]; ids=set()
     for source in sorted((root/'savour').glob('*/*/*/index.md')):
-        raw=source.read_text()
-        if not raw.startswith('---\n'): raise ValueError(f'Missing frontmatter: {source}')
-        _,head,body=raw.split('---',2)
-        m=yaml.safe_load(head)
-        for field in ['id','date','status','image']:
-            if field not in m: raise ValueError(f'Missing {field}: {source}')
+        meta,body=read_frontmatter(source)
+        try: validate_metadata(meta,site='savour',schema_dir=ROOT/'schemas')
+        except ValueError as error: raise ValueError(f'{source}: {error}') from error
+        m=metadata_view(meta)
         if m['id'] in ids: raise ValueError(f'Duplicate ID: {m["id"]}')
         ids.add(m['id'])
-        date=datetime.fromisoformat(str(m['date']))
-        if date.utcoffset() is None: raise ValueError(f'Date needs timezone: {source}')
+        date=published_datetime(meta)
         if source.parent.name!=m['id'] or source.parent.parent.name!=date.strftime('%m') or source.parent.parent.parent.name!=date.strftime('%Y'):
             raise ValueError(f'ID/date/package mismatch: {source}')
-        if m['status'] not in ['published','hidden','draft']: raise ValueError(f'Unknown status: {source}')
-        if m['status']!='published': continue
+        if not is_published(meta): continue
         image=(source.parent/m['image']).resolve()
         if not image.is_relative_to((source.parent/'assets').resolve()) or not image.is_file(): raise ValueError(f'Missing package image: {source}')
         rendered=markdown.markdown(E(body.strip(),quote=False),extensions=['tables','fenced_code','sane_lists'])

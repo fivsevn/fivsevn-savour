@@ -8,6 +8,7 @@ on:
       - 'site-data/**'
       - 'site-assets/**'
       - 'scripts/**'
+      - 'schemas/**'
       - '.publishing/**'
       - 'requirements.txt'
       - 'site.json'
@@ -33,23 +34,44 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: fivsevn-agy/fivsevn-spec
+          ref: main
+          path: .metadata-spec
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Verify content and publishing behavior
-        run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Normalize post metadata
+        run: python scripts/site_post_metadata.py normalize --site savour --root savour --schema-dir schemas
+      - name: Test publishing behavior
+        run: |
+          python -m unittest discover -s scripts -p 'test_*.py'
+          node scripts/test_navigation.mjs
       - name: Normalize saved photos to WebP
         run: python scripts/normalize_images.py
-      - name: Import uploaded images from their committed snapshots
+      - name: Import image uploads
         run: python scripts/ingest_github.py
+      - name: Validate post metadata
+        run: python scripts/site_post_metadata.py check --site savour --root savour --schema-dir schemas
+      - name: Validate authoritative shared metadata profile
+        run: python .metadata-spec/tools/check_metadata.py --profile site-post-v1 --site savour --content-root savour --root . --schema .metadata-spec/content/content-metadata.schema.json
       - id: pages
         uses: actions/configure-pages@v5
-      - run: python scripts/build.py --base-path "${{ steps.pages.outputs.base_path }}"
-      - run: python scripts/check.py --base-path "${{ steps.pages.outputs.base_path }}"
+      - name: Build static site
+        run: python scripts/build.py --base-path "${{ steps.pages.outputs.base_path }}"
+      - name: Check generated site
+        run: python scripts/check.py --base-path "${{ steps.pages.outputs.base_path }}"
       - name: Save posts and upload cursor together
         run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse FETCH_HEAD)" ]; then
+            echo '::error::Main changed during generation. Rerun from the latest branch head.'
+            exit 1
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add savour unpublished site-data .publishing/state.json .publishing/webp-conversion.json
