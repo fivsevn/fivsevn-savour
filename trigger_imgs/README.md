@@ -1,3 +1,41 @@
+---
+id: savour-trigger-imgs-readme
+title: savour 图片入口
+
+module: savour
+submodule: guide
+topic: guide
+
+type: note
+status: active
+canonical: true
+
+summary: savour 图片发布入口。
+
+parents: []
+related: []
+
+tags:
+- savour
+
+audience:
+- self
+- internal
+languages:
+- zh
+
+maturity: evolving
+confidence: null
+
+visibility: public
+source_of_truth: site
+
+filename_policy: entrypoint
+
+created: null
+updated: '2026-10-30'
+metadata_updated: '2026-10-30'
+---
 # savour 图片入口
 
 把图片上传到 **`fivsevn/fivsevn-savour` 的 `trigger_imgs/`**，提交并推送到 `main` 即可发布。
@@ -9,7 +47,7 @@
 
 > **格式与批量**：支持 JPG/JPEG、PNG、WebP、GIF、HEIC/HEIF。一次上传多张，每张各发一帖，共用这次配文。
 >
-> **自动处理**：按上传提交的北京时间命名、转为 WebP、建帖并发布；核验线上页面和图片后清理入口原图。失败时保留原图，同次提交重跑会沿用已有帖子。
+> **自动处理**：按上传提交的北京时间命名、转为 WebP、自动补齐统一资料、建帖并发布；核验线上页面和图片后清理入口原图。失败时保留原图，同次提交重跑会沿用已有帖子。
 >
 > **修改旧帖**：编辑 `savour/` 下对应帖子的 `index.md`；重新上传图片会生成新帖。
 

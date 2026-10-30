@@ -1,3 +1,41 @@
+---
+id: savour-readme
+title: Savour publishing and maintenance
+
+module: savour
+submodule: root
+topic: guide
+
+type: note
+status: active
+canonical: true
+
+summary: Publishing, validation, and maintenance for savour.
+
+parents: []
+related: []
+
+tags:
+- savour
+
+audience:
+- self
+- internal
+languages:
+- en
+
+maturity: evolving
+confidence: null
+
+visibility: public
+source_of_truth: site
+
+filename_policy: entrypoint
+
+created: null
+updated: '2026-10-30'
+metadata_updated: '2026-10-30'
+---
 # savour.fivsevn
 
 Savour is the food-and-drink section of [fivsevn.com](https://fivsevn.com/): meals, drinks, and food photos. Its public page is [savour.fivsevn.com](https://savour.fivsevn.com/). This repository holds its content archive and static-site backend.
@@ -22,6 +60,7 @@ site-data/
   webp-conversion.json              Receipt for the last saved-image conversion batch
   deployed.json                    File hashes from the last verified public deployment
 scripts/
+  site_post_metadata.py            Shared metadata normalization and schema validation
   image_codec.py                   Shared validation and WebP conversion
   normalize_images.py              Normalize saved photos and update their references
   ingest_github.py                  Import committed inbox snapshots into post packages
@@ -32,6 +71,7 @@ scripts/
   image_inbox.py                   Clear matching originals after verified publication
   test_*.py                        Content, conversion, ingestion, and cleanup tests
 .github/workflows/build.yml        Build and deploy Savour workflow
+schemas/                           Local copies of the shared core and site-post schemas
 site.json                          Site title, pagination, and decorative-number ranges
 requirements.txt                   Pinned Python dependencies
 _site/                             Generated deployment artifact; ignored by Git
@@ -90,38 +130,69 @@ A package contains one `index.md` and its own `assets/` directory:
 ```yaml
 ---
 id: 2026-10-29-120000-example
-date: '2026-10-29T12:00:00+08:00'
 title: 29 Oct, 2026 12:00
-author: 五月七日
+module: savour
+submodule: '2026'
+topic: null
+type: log
 status: published
-image: assets/20261029-120000-01.webp
-alt: A bowl of freshly cooked noodles
+canonical: true
+summary: null
+parents: []
+related: []
+tags: []
+audience: [public]
+languages: [zh]
+maturity: evolving
+confidence: null
+visibility: public
+source_of_truth: site
+filename_policy: entrypoint
+created: '2026-10-29'
+updated: '2026-10-29'
+metadata_updated: '2026-10-30'
+extra:
+  profile: site-post-v1
+  published_at: '2026-10-29T12:00:00+08:00'
+  author: 五月七日
+  image: assets/20261029-120000-01.webp
+  alt: A bowl of freshly cooked noodles
 ---
 
 Write the caption here. **Markdown** and [named links](https://example.com/) are supported.
 ```
 
-The frontmatter `image` holds the post's single photo. Put caption text after the closing `---`. On the individual page, the photo appears as one chat message and a caption as another; image-only posts show just the photo message. Additional Markdown images in the body fail validation.
+Saved posts use the same [content metadata contract](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/content-metadata.schema.json) and [site-post profile](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/site-post.schema.json) as Flux and Fieldlog. The shared normalizer and schemas are committed locally under `scripts/` and `schemas/`, so normal builds need no network connection. Update those copies together when adopting a new contract version.
+
+Uploads need only a photo and optional caption. The importer fills the shared fields automatically, and the workflow completes missing fields in manually saved packages before validation. Explicit statuses and visibility settings are preserved. Unrecognized older metadata is retained under `legacy.metadata` rather than discarded.
 
 | Field | Meaning |
 | --- | --- |
 | `id` | Stable identity; must match the package directory name |
-| `date` | Fixed publication timestamp with a timezone offset; its year and month must match the parent directories |
-| `title` | Displayed date label or heading, separate from the saved timestamp |
-| `author` | Author name; generated uploads use 五月七日 |
-| `status` | `published`, `hidden`, or `draft` |
-| `image` | Package-relative photo path inside `assets/` |
-| `alt` | Alternative text for the photo |
+| `title` | Displayed date label or heading |
+| `module`, `submodule`, `type` | `savour`, publication year as a string, and `log` |
+| `status`, `visibility` | A post is listed only when visibility is `public` and status is `active`, `publish`, or `published` |
+| `created`, `updated` | Content dates; kept separate from publication time |
+| `metadata_updated` | Date of a metadata change; an unchanged normalization does not refresh it |
+| `extra.profile` | `site-post-v1` |
+| `extra.published_at` | Fixed publication timestamp with a timezone offset; its year and month must match the package directories |
+| `extra.author` | Author name; generated uploads use 五月七日 |
+| `extra.image` | Package-relative photo path inside `assets/` |
+| `extra.alt` | Alternative text for the photo |
 
-To revise a caption, edit the saved `index.md`, commit, and push. Keep the ID and date unchanged to preserve the permalink and chronological position. Change `status` to `hidden` or `draft` to exclude a post from the website; delete its entire package directory to remove it. Earlier versions remain in the public repository's Git history.
+The photo is stored in `extra.image`; put caption text after the closing `---`. On the individual page, the photo appears as one chat message and a caption as another. Image-only posts show the photo message. Additional Markdown images in the body fail validation.
+
+To revise a caption, edit the saved `index.md`, commit, and push. Keep the ID and `extra.published_at` unchanged to preserve the permalink and chronological position. Set `status` to `hidden` or `draft`, or set `visibility` to `private` or `internal`, to exclude a post from the generated website. This metadata does not make files in the public repository private. Delete a post's entire package directory to remove it; earlier versions remain in Git history.
+
+Each feed page contains up to **11 published posts**. The opening lock screen, closing chat, and final lock screen are decorative sections and do not count toward that limit. A partial final page contains the remaining posts.
 
 ## Publishing and inbox cleanup
 
 The workflow runs on relevant pushes to `main` and supports manual runs. It serializes publication and checks out the latest branch with complete Git history.
 
-1. Install pinned dependencies and run the test suite.
-2. Normalize saved photos, then import unprocessed inbox changes from their immutable Git commit snapshots.
-3. Read the actual Pages base path, build the site, and validate source integrity and generated references.
+1. Install pinned dependencies, normalize shared post metadata, and run the test suite.
+2. Normalize saved photos, import unprocessed inbox changes from their immutable Git commit snapshots, and validate the shared core and site-post schemas.
+3. Read the actual Pages base path, build into `_site/`, and validate source integrity and generated references.
 4. Commit saved packages, updated checksums, conversion records, and the upload cursor together, then push to `main`.
 5. Upload the artifact and deploy it through GitHub Pages.
 6. Compare the public build receipt and required page/media bytes with the local artifact.
@@ -151,8 +222,10 @@ Open the failed step in [Actions](https://github.com/fivsevn/fivsevn-savour/acti
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
+python scripts/site_post_metadata.py normalize --site savour --root savour --schema-dir schemas
 python -m unittest discover -s scripts -p 'test_*.py'
 python scripts/normalize_images.py
+python scripts/site_post_metadata.py check --site savour --root savour --schema-dir schemas
 python scripts/build.py
 python scripts/check.py
 python -m http.server 8000 --directory _site
@@ -171,7 +244,8 @@ The helper converts each input to WebP and creates a separate package. GitHub an
 
 ### Settings and state
 
-- `site.json` controls the site title, feed page size, and random battery/progress ranges.
+- `site.json` controls the site title, the 11-post feed page size, and random battery/progress ranges.
+- `scripts/site_post_metadata.py` and `schemas/` keep the shared metadata contract local. `normalize` fills missing metadata without changing captions; `check` validates without rewriting files.
 - `site-data/history.json` retains the established order for equal-time historic posts and same-origin path aliases.
 - `site-data/originals.json` verifies archived WebP photos, the avatar, and fonts.
 - `unpublished/IMG_7310.webp` retains a photo pending a reliable publication date.

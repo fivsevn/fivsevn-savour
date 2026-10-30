@@ -20,9 +20,8 @@ import tempfile
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import yaml
-
 from image_codec import convert_image, validate_image, register_heif_opener
+from site_post_metadata import dump_frontmatter, normalize_metadata, validate_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 INBOX = "trigger_imgs"
@@ -200,8 +199,9 @@ def ingest(root: Path = ROOT) -> int:
                         "title": f"{date.day:02d} {MONTHS[date.month - 1]}, {date.year} {date:%H:%M}",
                         "author": "五月七日", "status": "published", "image": "assets/" + filename,
                         "alt": "五月七日分享的美食"}
-                (pending / "index.md").write_text("---\n" + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False)
-                                                   + "---\n\n" + caption + "\n", encoding="utf-8")
+                meta = normalize_metadata(meta, site="savour")
+                validate_metadata(meta, site="savour", schema_dir=ROOT / "schemas")
+                (pending / "index.md").write_text(dump_frontmatter(meta) + "\n" + caption + "\n", encoding="utf-8")
                 updated["events"][key] = {"id": ident, "commit": commit, "upload_path": upload["path"],
                                            "blob_sha": upload["blob_sha"], "sha256": hashlib.sha256(data).hexdigest(),
                                            "file_sha256": hashlib.sha256(converted).hexdigest(),

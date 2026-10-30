@@ -18,9 +18,9 @@ import re
 import tempfile
 
 from PIL import Image
-import yaml
-
 from image_codec import convert_image
+from site_post_metadata import (dump_frontmatter, metadata_view, normalize_metadata,
+                                read_frontmatter, validate_metadata)
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = 'site-data/originals.json'
@@ -62,24 +62,20 @@ def parse_post(data: bytes, source: Path) -> tuple[str, re.Match, dict]:
     match = FRONTMATTER.match(text)
     if not match:
         raise ValueError('Missing post frontmatter: ' + str(source))
-    meta = yaml.safe_load(match.group(1))
-    if not isinstance(meta, dict) or not isinstance(meta.get('image'), str):
+    raw, _ = read_frontmatter(text)
+    meta = metadata_view(raw)
+    if not isinstance(meta.get('image'), str):
         raise ValueError('Missing post image: ' + str(source))
     return text, match, meta
 
 
 def replace_image(data: bytes, source: Path, image: str) -> bytes:
-    text, match, meta = parse_post(data, source)
-    head = match.group(1)
-    lines = list(re.finditer(r'(?m)^image[ \t]*:[^\r\n]*', head))
-    if len(lines) != 1:
-        raise ValueError('Post image must be one top-level scalar: ' + str(source))
-    line = lines[0]
-    new_head = head[:line.start()] + 'image: ' + json.dumps(image, ensure_ascii=False) + head[line.end():]
-    expected = dict(meta, image=image)
-    if yaml.safe_load(new_head) != expected:
-        raise ValueError('Image update would change other post metadata: ' + str(source))
-    return (text[:match.start(1)] + new_head + text[match.end(1):]).encode('utf-8')
+    text, match, _ = parse_post(data, source)
+    raw, _ = read_frontmatter(text)
+    meta = normalize_metadata(raw, site='savour', post_id=source.parent.name)
+    meta['extra']['image'] = image
+    validate_metadata(meta, site='savour', schema_dir=ROOT / 'schemas')
+    return (dump_frontmatter(meta).rstrip('\n') + text[match.end():]).encode('utf-8')
 
 
 def normalize(root: Path = ROOT, workers: int = 4) -> dict:
