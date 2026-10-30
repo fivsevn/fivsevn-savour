@@ -48,7 +48,9 @@ jobs:
       - name: Normalize post metadata
         run: python scripts/site_post_metadata.py normalize --site savour --root savour --schema-dir schemas
       - name: Test publishing behavior
-        run: python -m unittest discover -s scripts -p 'test_*.py'
+        run: |
+          python -m unittest discover -s scripts -p 'test_*.py'
+          node scripts/test_navigation.mjs
       - name: Normalize saved photos to WebP
         run: python scripts/normalize_images.py
       - name: Import image uploads
