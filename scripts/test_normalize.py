@@ -11,6 +11,7 @@ from PIL import Image
 import yaml
 
 from normalize_images import normalize
+from site_post_metadata import metadata_view, read_frontmatter, validate_metadata
 
 
 def image_bytes(fmt='PNG', color='red'):
@@ -85,9 +86,14 @@ class NormalizeImagesTests(unittest.TestCase):
                 self.assertEqual(image.size, (32, 24))
         self.assertEqual(shared.read_bytes(), shared_data)
         after = source.read_bytes()
-        expected = before.replace(b'image: assets/photo.JPEG', b'image: "assets/photo.webp"')
-        self.assertEqual(after, expected)
-        self.assertEqual(yaml.safe_load(after.decode().split('---', 2)[1])['status'], 'published')
+        old_meta,old_body=read_frontmatter(before.decode())
+        new_meta,new_body=read_frontmatter(after.decode())
+        validate_metadata(new_meta,site='savour')
+        view=metadata_view(new_meta)
+        for key,value in old_meta.items():
+            self.assertEqual(view[key],'assets/photo.webp' if key=='image' else value)
+        self.assertEqual(new_body,old_body)
+        self.assertNotIn('image',new_meta)
         for item in json.loads(self.manifest_path.read_text()):
             p = self.root / item['path']
             self.assertEqual(item['sha256'], sha(p.read_bytes()))
@@ -114,7 +120,7 @@ class NormalizeImagesTests(unittest.TestCase):
         for status, (source, photo) in zip(['published', 'hidden', 'draft'], sources):
             meta = yaml.safe_load(source.read_text().split('---', 2)[1])
             self.assertEqual(meta['status'], status)
-            self.assertEqual(meta['image'], 'assets/photo.webp')
+            self.assertEqual(meta['extra']['image'], 'assets/photo.webp')
             self.assertFalse(photo.exists())
 
     def test_manifest_mismatch_leaves_every_original_and_metadata_untouched(self):
