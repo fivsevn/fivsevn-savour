@@ -5,3 +5,5 @@ __pycache__/
 
 # Written only by successful public deployment verification.
 _site/.verified.json
+
+.metadata-spec/

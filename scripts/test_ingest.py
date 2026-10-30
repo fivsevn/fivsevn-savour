@@ -13,6 +13,7 @@ import yaml
 from PIL import Image
 
 from ingest_github import ingest, read_state, register_heif_opener
+from site_post_metadata import metadata_view, validate_metadata
 
 
 def image_bytes(color="red", format="PNG"):
@@ -111,10 +112,16 @@ class IngestTests(unittest.TestCase):
             self.assertEqual(event["sha256"], hashlib.sha256(payloads[upload]).hexdigest())
             self.assertEqual(event["blob_sha"], self.command("rev-parse", sha + ":" + upload))
             _, meta, body = next(package for package in self.packages() if package[1]["id"] == event["id"])
-            self.assertEqual(set(meta), {"id", "date", "title", "author", "status", "image", "alt"})
-            self.assertEqual(meta["date"], "2026-10-29T12:30:12+08:00")
+            validate_metadata(meta,site='savour')
+            self.assertEqual(meta['module'],'savour')
+            self.assertEqual(meta['submodule'],'2026')
+            self.assertEqual(meta['type'],'log')
+            self.assertEqual(meta['extra']['profile'],'site-post-v1')
+            self.assertNotIn('date',meta)
+            self.assertNotIn('image',meta)
+            self.assertEqual(meta["extra"]["published_at"], "2026-10-29T12:30:12+08:00")
             self.assertEqual(meta["title"], "29 Oct, 2026 12:30")
-            self.assertEqual(meta["image"], "assets/" + original.name)
+            self.assertEqual(meta["extra"]["image"], "assets/" + original.name)
             self.assertEqual(body, "配文 [主页](https://example.com/)\n第二段")
             self.assertNotIn("![]", body)
             self.assertTrue((self.root / upload).exists(), "Ingestion must retain the inbox original")
