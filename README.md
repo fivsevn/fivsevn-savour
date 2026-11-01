@@ -255,7 +255,7 @@ The helper converts each input to WebP and creates a separate package. GitHub an
 
 ### Phone interface
 
-Feed phones have uniform frames and the page scrolls as a whole. Feed and individual pages share the same photo size and bubble padding; overflowing messages scroll inside the chat area while the header and composer stay fixed. The individual page keeps one frame within the visible viewport; its header arrow returns to the source feed and post position.
+Feed phones have uniform frames and the page scrolls as a whole. Feed and individual pages share the same photo size and bubble padding. Feed messages use the available space above the composer before overflowing messages scroll inside the chat area; the header and composer stay fixed, and chat scrollbars stay hidden. The individual page keeps one frame within the visible viewport; its header arrow returns to the source feed and post position.
 
 Decorative time, battery, and eating progress are randomized independently for each phone once per document load. Progress has three decimal places, such as `704.739%`. These values stay fixed while the page is open, including during scrolling and resizing. Publication dates and URLs come from saved post metadata.
 

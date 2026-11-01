@@ -9,6 +9,9 @@
 /* Photos share their natural layout; overflowing messages stay inside the screen. */
 .post-phone .messages{overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .post-phone .messages::-webkit-scrollbar{display:none;width:0;height:0}
+/* Use the space above the composer before scrolling feed messages. */
+.timeline:not(.detail) .post-phone .messages{margin-bottom:0}
+.timeline:not(.detail) .post-phone .composer{margin-top:0}
 .messages .bubble :is(a,p,span,code,li,th,td,h1,h2,h3,h4,h5,h6){font-size:inherit}
 /* A detail page has one stationary frame with an independently scrollable screen. */
 html.detail-page,html.detail-page body{height:100%;overflow:hidden;overscroll-behavior:none}
