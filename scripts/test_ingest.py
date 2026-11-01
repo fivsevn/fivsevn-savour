@@ -284,6 +284,38 @@ class IngestTests(unittest.TestCase):
         self.assertEqual(ingest(self.root), 1)
         self.assertEqual(len(self.packages()), 2)
 
+    def test_merge_imports_side_branch_upload_once_with_its_original_time(self):
+        self.commit("Save initial upload state")
+        self.command("checkout", "--quiet", "-b", "phone")
+        self.write("trigger_imgs/phone.png", image_bytes("blue"))
+        uploaded = self.commit("Phone photo", "2026-10-28T02:03:04+00:00")
+        self.command("checkout", "--quiet", "main")
+        self.write("notes.txt", b"Update notes")
+        self.commit("Notes update")
+        self.command("merge", "--quiet", "--no-ff", "phone", "-m", "Merge phone")
+        self.assertEqual(ingest(self.root), 1)
+        event = next(iter(read_state(self.root)["events"].values()))
+        self.assertEqual(event["commit"], uploaded)
+        self.assertEqual(self.packages()[0][1]["extra"]["published_at"], "2026-10-28T10:03:04+08:00")
+        self.assertEqual(ingest(self.root), 0)
+
+    def test_merge_accepts_published_cursor_from_second_parent(self):
+        self.commit("Save initial upload state")
+        self.command("branch", "phone")
+        self.write("trigger_imgs/main.png", image_bytes("red"))
+        main_upload = self.commit("Main photo")
+        self.assertEqual(ingest(self.root), 1)
+        self.commit("Save published package and cursor")
+        self.command("checkout", "--quiet", "phone")
+        self.write("trigger_imgs/phone.png", image_bytes("blue"))
+        phone_upload = self.commit("Phone photo")
+        self.command("merge", "--quiet", "--no-ff", "main", "-m", "Merge published main")
+        self.assertEqual(read_state(self.root)["cursor"], main_upload)
+        self.assertEqual(ingest(self.root), 1)
+        self.assertEqual({event["commit"] for event in read_state(self.root)["events"].values()}, {main_upload, phone_upload})
+        self.assertEqual(len(self.packages()), 2)
+        self.assertEqual(ingest(self.root), 0)
+
     def test_missing_and_nonancestor_cursors_fail_instead_of_replaying(self):
         self.write("trigger_imgs/a.png", image_bytes())
         self.commit("Upload")
@@ -299,7 +331,7 @@ class IngestTests(unittest.TestCase):
         self.command("checkout", "--quiet", "main")
         state["cursor"] = unrelated
         self.state_path.write_text(json.dumps(state))
-        with self.assertRaisesRegex(ValueError, "first-parent"):
+        with self.assertRaisesRegex(ValueError, "not an ancestor"):
             ingest(self.root)
         self.assertFalse(self.packages())
 
