@@ -40,13 +40,13 @@ metadata_updated: '2026-10-30'
 
 Savour is the food-and-drink section of [fivsevn.com](https://fivsevn.com/): meals, drinks, and food photos. Its public page is [savour.fivsevn.com](https://savour.fivsevn.com/). This repository holds its content archive and static-site backend.
 
-Upload photos to [`trigger_imgs/`](trigger_imgs/). The repository converts them to WebP, saves one editable post per image, builds the phone-chat interface, and publishes through GitHub Pages. The [image inbox guide](trigger_imgs/README.md) provides concise everyday instructions in Chinese; this README covers publishing and maintenance in English.
+Upload photos to [`trigger_imgs/`](trigger_imgs/). The repository converts them to WebP, saves one editable post per image, builds the phone-chat interface, and publishes through GitHub Pages. See the [image inbox guide](trigger_imgs/README.md) for publishing steps.
 
 ## Repository layout
 
 ```text
 trigger_imgs/                      Temporary image-upload inbox
-  README.md                        Chinese daily upload guide
+   README.md                        Upload guide
 savour/YYYY/MM/{id}/
   index.md                         Metadata and editable Markdown caption
   assets/                          The post's archived WebP photo
