@@ -6,21 +6,16 @@
 @media(max-width:380px){.phone{padding-inline:16px}.avatar{width:27px;height:27px;flex-basis:27px}.bubble{padding:14px}.message{gap:9px}.composer{gap:7px}.composer-symbol{width:27px;flex-basis:27px}.chat-header{padding-inline:0}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 
-/* Feed phones stay still; only the page scrolls. Reserve the date message before fitting the photo. */
-.timeline:not(.detail) .post-phone .messages{display:grid;grid-template-rows:minmax(0,max-content) max-content;align-content:start}
-.timeline:not(.detail) .post-phone .messages>.message:first-child{min-height:0;height:100%;max-height:100%;align-self:stretch}
-.timeline:not(.detail) .post-phone .messages>.message:first-child .bubble{min-height:0;height:fit-content;max-height:100%;display:flex;flex-direction:column;align-self:flex-start}
-.timeline:not(.detail) .photo-link{min-height:0;display:flex;flex:0 1 auto}
-.timeline:not(.detail) .food-photo{min-height:0;object-fit:contain}
+/* Photos share their natural layout; overflowing messages stay inside the screen. */
+.post-phone .messages{overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.post-phone .messages::-webkit-scrollbar{display:none;width:0;height:0}
 .messages .bubble :is(a,p,span,code,li,th,td,h1,h2,h3,h4,h5,h6){font-size:inherit}
 /* A detail page has one stationary frame with an independently scrollable screen. */
 html.detail-page,html.detail-page body{height:100%;overflow:hidden;overscroll-behavior:none}
 html.detail-page body{display:flow-root}
 .timeline.detail{margin:var(--page-top) auto 0}
 .timeline.detail .phone{height:min(var(--phone-height),calc(var(--viewport-height) - var(--page-top) - max(16px,env(safe-area-inset-bottom))));margin-bottom:0}
-.timeline.detail .messages{margin-bottom:8px;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.timeline.detail .messages{margin-bottom:8px;overscroll-behavior-y:contain}
 .timeline.detail .composer{margin-top:8px;padding-top:0}
 @supports(height:100svh){:root{--viewport-height:100svh}}
 @supports(height:100dvh){html.detail-page{--viewport-height:100dvh}}
-
-.timeline.detail .messages::-webkit-scrollbar{display:none;width:0;height:0}
