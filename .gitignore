@@ -7,3 +7,5 @@ __pycache__/
 _site/.verified.json
 
 .metadata-spec/
+
+.publishing/webp-conversion.json

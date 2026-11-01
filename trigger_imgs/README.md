@@ -33,22 +33,16 @@ source_of_truth: site
 filename_policy: entrypoint
 
 created: null
-updated: '2026-10-30'
-metadata_updated: '2026-10-30'
+updated: '2026-11-01'
+metadata_updated: '2026-11-01'
 ---
-# savour 图片入口
 
-把图片上传到 **`fivsevn/fivsevn-savour` 的 `trigger_imgs/`**，提交并推送到 `main` 即可发布。
+# 上传图片
 
-1. Working Copy / 快捷指令先拉取最新的 `main`；网页上传可直接[点这里选图](https://github.com/fivsevn/fivsevn-savour/upload/main/trigger_imgs)。
-2. 保存图片到本目录，保留手机原文件名。
-3. 配文写在提交的 **可选详细说明（extended description）** 中，支持 Markdown；留空则只发图。提交并推送到 `main`。
-4. 等待 [Build and deploy Savour](https://github.com/fivsevn/fivsevn-savour/actions/workflows/build.yml) 完成，打开 [savour](https://savour.fivsevn.com/) 核对图片和配文。
+1. [选择图片](https://github.com/fivsevn/fivsevn-savour/upload/main/trigger_imgs)，保留原文件名。
+2. 配文写在提交的详细说明中，提交到 `main`；每张图片生成一帖。
+3. 等待 [Actions](https://github.com/fivsevn/fivsevn-savour/actions/workflows/build.yml) 成功，查看 [Savour](https://savour.fivsevn.com/)。
 
-> **格式与批量**：支持 JPG/JPEG、PNG、WebP、GIF、HEIC/HEIF。一次上传多张，每张各发一帖，共用这次配文。
->
-> **自动处理**：按上传提交的北京时间命名、转为 WebP、自动补齐统一资料、建帖并发布；核验线上页面和图片后清理入口原图。失败时保留原图，同次提交重跑会沿用已有帖子。
->
-> **修改旧帖**：编辑 `savour/` 下对应帖子的 `index.md`；重新上传图片会生成新帖。
+支持 JPG/JPEG、PNG、WebP、GIF、HEIC/HEIF，自动保存为 WebP。手机上传前先拉取最新 `main`，线上核验成功后入口原图自动清理。
 
-[构建与维护](../README.md#publish-images)
+旧帖在 `savour/年/月/编号/index.md` 修改，重新上传会生成新帖。[维护说明](../README.md)
