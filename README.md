@@ -38,6 +38,8 @@ metadata_updated: '2026-10-30'
 ---
 # savour.fivsevn
 
+[System map](https://github.com/fivsevn-agy/fivsevn-devlog/blob/main/system-map.md)
+
 Savour is the food-and-drink section of [fivsevn.com](https://fivsevn.com/): meals, drinks, and food photos. Its public page is [savour.fivsevn.com](https://savour.fivsevn.com/). This repository holds its content archive and static-site backend.
 
 Upload photos to [`trigger_imgs/`](trigger_imgs/). The repository converts them to WebP, saves one editable post per image, builds the phone-chat interface, and publishes through GitHub Pages. See the [image inbox guide](trigger_imgs/README.md) for publishing steps.
@@ -57,7 +59,6 @@ site-data/
   originals.json                   Checksums of retained archive and shared assets
 .publishing/
   state.json                       Upload cursor and processed image events
-  webp-conversion.json              Receipt for the last saved-image conversion batch
   deployed.json                    File hashes from the last verified public deployment
 scripts/
   site_post_metadata.py            Shared metadata normalization and schema validation
@@ -250,7 +251,6 @@ The helper converts each input to WebP and creates a separate package. GitHub an
 - `site-data/originals.json` verifies archived WebP photos, the avatar, and fonts.
 - `unpublished/IMG_7310.webp` retains a photo pending a reliable publication date.
 - `.publishing/state.json` records the Git cursor, event identities, source digests, saved WebP digests, and package paths. Preserve it during routine maintenance.
-- `.publishing/webp-conversion.json` records the last saved-image conversion batch and stays unchanged between conversions.
 - `.publishing/deployed.json` records the last verified public file hashes. `_site/build-receipt.json` describes the current artifact, and `_site/.verified.json` is a local verification marker used before cleanup.
 
 ### Phone interface
