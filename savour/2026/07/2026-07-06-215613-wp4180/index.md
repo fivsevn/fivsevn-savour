@@ -36,7 +36,7 @@ metadata_updated: '2026-10-30'
 
 extra:
   author: 五月七日
-  image: assets/IMG_7815.webp
+  image: assets/20260706-215613-savour-f0136c8beb6f-001.webp
   alt: 06 Jul, 2026 22:55
   profile: site-post-v1
   published_at: '2026-07-06T21:56:13+08:00'

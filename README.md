@@ -101,7 +101,7 @@ Before each upload, pull the latest `main`. The publishing bot creates commits c
 
 - Publication time comes from the upload commit's **committer timestamp**, converted to `Asia/Shanghai` and saved with its UTC offset.
 - A package ID combines that timestamp with a digest of the upload commit and path. Its directory is `savour/YYYY/MM/{id}/`.
-- Archived media is named `assets/YYYYMMDD-HHMMSS-NN.webp`. Uploaded paths are sorted to assign stable batch numbers.
+- Archived media follows the [shared naming rule](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/spec-content-media-naming-001.md). Each package has its own stable key and starts its photo sequence at `001`.
 - Each commit and path is processed once; retries preserve the saved post and any later caption edits.
 - Uploading the same filename or identical image bytes in a **new commit** creates a new post. Revise an existing post through its saved package.
 - A saved package keeps its ID, publication date, and permalink through image conversion.
@@ -155,7 +155,7 @@ extra:
   profile: site-post-v1
   published_at: '2026-10-29T12:00:00+08:00'
   author: 五月七日
-  image: assets/20261029-120000-01.webp
+  image: assets/20261029-120000-savour-b9e3bd59a449-001.webp
   alt: A bowl of freshly cooked noodles
 ---
 
@@ -260,3 +260,7 @@ Feed phones have uniform frames and the page scrolls as a whole. The individual 
 Decorative time, battery, and eating progress are randomized independently for each phone once per document load. Progress has three decimal places, such as `704.739%`. These values stay fixed while the page is open, including during scrolling and resizing. Publication dates and URLs come from saved post metadata.
 
 GitHub Pages manages the custom domain and HTTPS. Site settings and DNS are managed separately from the build. Savour uses the shared publishing conventions of the fivsevn site family and its own phone-chat interface.
+
+## Publication media names
+
+Package images follow `YYYYMMDD-HHMMSS-<board>-<package-key>-NNN.ext`. The key is the first 12 lowercase hexadecimal characters of SHA-256 over `board:id`; publication time uses Asia/Shanghai. The file sequence stays fixed when display order changes. Uploads receive canonical names automatically. Keep shared assets and unarranged drafts in their existing locations. See the [shared naming rule](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/spec-content-media-naming-001.md).

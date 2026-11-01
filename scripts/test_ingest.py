@@ -106,7 +106,7 @@ class IngestTests(unittest.TestCase):
         for number, upload in enumerate(paths, start=1):
             event = state["events"][sha + ":" + upload]
             original = self.root / event["image_path"]
-            self.assertEqual(original.name, f"20261029-123012-{number:02d}.webp")
+            self.assertRegex(original.name, r"^20261029-123012-savour-[a-f0-9]{12}-001\.webp$")
             self.assertWebpPixels(original, payloads[upload])
             self.assertEqual(event["file_sha256"], hashlib.sha256(original.read_bytes()).hexdigest())
             self.assertEqual(event["sha256"], hashlib.sha256(payloads[upload]).hexdigest())

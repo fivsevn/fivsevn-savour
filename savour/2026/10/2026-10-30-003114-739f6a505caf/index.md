@@ -36,7 +36,7 @@ metadata_updated: '2026-10-30'
 
 extra:
   author: 五月七日
-  image: assets/20261030-003114-01.webp
+  image: assets/20261030-003114-savour-0b4a110839f1-001.webp
   alt: 五月七日分享的美食
   profile: site-post-v1
   published_at: '2026-10-30T00:31:14+08:00'

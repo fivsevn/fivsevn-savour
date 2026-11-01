@@ -51,6 +51,12 @@ jobs:
         run: |
           python -m unittest discover -s scripts -p 'test_*.py'
           node scripts/test_navigation.mjs
+      - name: Verify shared contract copies
+        run: |
+          cmp scripts/site_post_metadata.py .metadata-spec/tools/site_post_metadata.py
+          cmp scripts/media_naming.py .metadata-spec/tools/media_naming.py
+          cmp schemas/content-metadata.schema.json .metadata-spec/content/content-metadata.schema.json
+          cmp schemas/site-post.schema.json .metadata-spec/content/site-post.schema.json
       - name: Normalize saved photos to WebP
         run: python scripts/normalize_images.py
       - name: Import image uploads
@@ -59,6 +65,9 @@ jobs:
         run: python scripts/site_post_metadata.py check --site savour --root savour --schema-dir schemas
       - name: Validate authoritative shared metadata profile
         run: python .metadata-spec/tools/check_metadata.py --profile site-post-v1 --site savour --content-root savour --root . --schema .metadata-spec/content/content-metadata.schema.json
+      - name: Validate publication media and metadata
+        run: |
+          python scripts/media_naming.py check --site savour --root savour
       - id: pages
         uses: actions/configure-pages@v5
       - name: Build static site
