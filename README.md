@@ -94,9 +94,9 @@ Each image becomes a separate post. Images uploaded in the same commit share the
 
 ### Use a phone shortcut
 
-Configure the shortcut to use **fivsevn-savour**, save images into `trigger_imgs/`, and commit and push to this repository's `main` branch. If the shortcut collects a caption, write it to the commit's extended description.
+Before saving each batch, sync **fivsevn/fivsevn-savour** with the latest `main` in Working Copy or GitHub Desktop. Configure the shortcut to save images into this local repository's root `trigger_imgs/`; on a computer, copy photos into the same directory. Put an optional caption in the commit's extended description, then commit and push to `main` in the app. Opening the app or copying a commit message alone does not push changes. Wait for Build and deploy Savour to finish, then check the public post and image.
 
-Use a direct GitHub API shortcut that reads the latest `main` for each upload. History cleanup changes commit IDs: re-clone old Working Copy checkouts instead of merging them. Read-only PR refs and server object retention are managed by GitHub.
+History cleanup is optional maintenance: manually run `workflow_dispatch` with `compact_image_history=true` (default `false`) to remove converted non-WebP images from `main` history and remap publication cursors. Pending inputs or concurrent commits defer it. This changes commit IDs; realign or re-clone Working Copy and desktop checkouts afterward without merging the old history. Read-only PR refs and server object retention are managed by GitHub.
 
 ### Dates, names, and duplicate handling
 
@@ -118,7 +118,7 @@ Supported inputs are JPG/JPEG, PNG, WebP, GIF, HEIC, and HEIF, with case-insensi
 | GIF animations | Lossless animated WebP retaining frames, timing, transparency, and loop behavior |
 | Existing WebP | Validated and retained byte-for-byte |
 
-MPO and HEIF uploads use the primary display photo; auxiliary images such as phone HDR gain maps stay outside the animation frames. Each saved package keeps its archived WebP. After verified inbox cleanup, the workflow removes converted non-WebP images from `main` history and remaps publication cursors; pending inputs or concurrent commits defer this step. Keep original backups outside Git and pull the latest `main` before uploading.
+MPO and HEIF uploads use the primary display photo; auxiliary images such as phone HDR gain maps stay outside the animation frames. Each saved package keeps its archived WebP. Routine publication clears verified inbox originals without rewriting Git history. Keep original backups outside Git and pull the latest `main` before uploading.
 
 For static images larger than 1400 pixels on their longest edge, the website build creates a smaller `display.webp` thumbnail in `_site/`. The individual post links to the full-resolution archived WebP. Smaller WebP images and animations are served directly. Display thumbnails live in the generated deployment artifact.
 
