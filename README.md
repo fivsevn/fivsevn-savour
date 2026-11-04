@@ -163,7 +163,7 @@ extra:
 Write the caption here. **Markdown** and [named links](https://example.com/) are supported.
 ```
 
-Saved posts use the same [content metadata contract](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/content-metadata.schema.json) and [site-post profile](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/site-post.schema.json) as Flux and Fieldlog. The shared normalizer and schemas are committed locally under `scripts/` and `schemas/`, so normal builds need no network connection. Update those copies together when adopting a new contract version.
+Saved posts use the same [content metadata contract](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/content-metadata.schema.json) and [site-post profile](https://github.com/fivsevn-agy/fivsevn-spec/blob/main/content/site-post.schema.json) as Flux and Fieldlog. The shared normalizer and schemas are committed locally under `scripts/` and `schemas/`, so normal builds need no network connection. CI reads the fixed Spec revision from [`.github/spec-ref`](.github/spec-ref); update that lock and the local helper/schema copies together when adopting a new contract version.
 
 Uploads need only a photo and optional caption. The importer fills the shared fields automatically, and the workflow completes missing fields in manually saved packages before validation. Explicit statuses and visibility settings are preserved. Unrecognized older metadata is retained under `legacy.metadata` rather than discarded.
 
