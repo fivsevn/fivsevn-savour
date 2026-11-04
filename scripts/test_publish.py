@@ -57,6 +57,18 @@ class PublicationTests(unittest.TestCase):
         self.assertFalse(self.source.exists())
         self.assertEqual(self.saved.read_bytes(), self.media)
 
+    def test_optional_cname_selects_public_verification_domain(self):
+        (self.root / 'CNAME').write_text('food.example\n')
+        requested = []
+        def read(url):
+            requested.append(url)
+            return self.fetch(url)
+        result = verify(self.root, read=read, attempts=1)
+        self.assertEqual('https://food.example', result['url'])
+        self.assertTrue(all(urlparse(url).netloc == 'food.example' for url in requested))
+        explicit = verify(self.root, 'https://override.example', self.fetch, attempts=1)
+        self.assertEqual('https://override.example', explicit['url'])
+
     def test_uploaded_original_and_saved_webp_can_have_different_bytes(self):
         converted = b'converted WebP bytes'
         self.saved.write_bytes(converted)

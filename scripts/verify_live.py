@@ -29,8 +29,10 @@ def fetch(url):
             time.sleep(5)
 
 
-def verify(root=ROOT, base_url='https://savour.fivsevn.com', read=fetch, attempts=6, pause=time.sleep):
+def verify(root=ROOT, base_url=None, read=fetch, attempts=6, pause=time.sleep):
     root = Path(root)
+    if base_url is None:
+        base_url = 'https://' + ((root / 'CNAME').read_text().strip() if (root / 'CNAME').is_file() else 'savour.fivsevn.com')
     site = root / '_site'
     (site / '.verified.json').unlink(missing_ok=True)
     receipt_bytes = (site / 'build-receipt.json').read_bytes()
@@ -90,6 +92,6 @@ def verify(root=ROOT, base_url='https://savour.fivsevn.com', read=fetch, attempt
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--url', default='https://savour.fivsevn.com')
+    parser.add_argument('--url')
     args = parser.parse_args()
     verify(base_url=args.url)

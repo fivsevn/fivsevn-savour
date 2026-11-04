@@ -2,7 +2,8 @@
 """Deterministic static Savour builder. No network access."""
 import argparse, hashlib, html, json, re, shutil
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
+import xml.etree.ElementTree as ET
 import markdown
 from image_codec import is_lossless_webp
 from bs4 import BeautifulSoup
@@ -17,6 +18,8 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 E = html.escape
+SITE_URL = 'https://savour.fivsevn.com'
+DESCRIPTION = '五月七日发来一条消息：下滑开始吃。'
 
 def read_posts(root=ROOT):
     posts=[]; ids=set()
@@ -52,10 +55,12 @@ def build(root=ROOT, output=None, base_path=''):
     if output.resolve()==root.resolve() or root.resolve().is_relative_to(output.resolve()): raise ValueError('Unsafe output path')
     base_path='/' + base_path.strip('/') if base_path.strip('/') else ''
     cfg=json.loads((root/'site.json').read_text()); posts=read_posts(root)
+    site_url='https://'+(root/'CNAME').read_text().strip() if (root/'CNAME').is_file() else SITE_URL
     total=max(1,(len(posts)+cfg['page_size']-1)//cfg['page_size'])
     if output.exists(): shutil.rmtree(output)
     output.mkdir(parents=True)
     shutil.copytree(root/'site-assets',output/'site-assets')
+    if (root/'CNAME').is_file(): shutil.copy2(root/'CNAME',output/'CNAME')
     def url(path=''): return base_path+'/'+path
     asset_versions={name:hashlib.sha256((root/'site-assets'/name).read_bytes()).hexdigest()[:12] for name in ['style.css','site.js']}
     def asset(name): return url('site-assets/'+name)+'?v='+asset_versions[name]
@@ -63,8 +68,17 @@ def build(root=ROOT, output=None, base_path=''):
     def save(path,content):
         dest=output/path;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(content)
     random_config=dict(random=cfg['random'],base_path=base_path,total_pages=total)
-    def shell(content,title=cfg['title'],detail=False):
-        return f'''<!doctype html><html lang="zh-CN" class="{'detail-page' if detail else 'feed-page'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#131415"><meta name="description" content="五月七日发来一条消息：下滑开始吃。"><title>{E(title)}</title><link rel="icon" href="{url('site-assets/avatar.webp')}"><link rel="preload" href="{url('site-assets/fonts/courier-prime.woff2')}" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="{asset('style.css')}"></head><body><main id="top" class="timeline{' detail' if detail else ''}">{content}</main><script id="savour-config" type="application/json">{json.dumps(random_config)}</script><script src="{asset('site.js')}"></script></body></html>'''
+    def metadata(title,path='',image='site-assets/avatar.webp',kind='website'):
+        canonical=site_url+'/'+quote(path.lstrip('/'),safe='/')
+        fields=[('name','description',DESCRIPTION),('property','og:title',title),
+                ('property','og:description',DESCRIPTION),('property','og:type',kind),
+                ('property','og:url',canonical),('property','og:image',site_url+'/'+quote(image.lstrip('/'),safe='/')),
+                ('property','og:site_name',cfg['title']),('name','twitter:card','summary'),
+                ('name','twitter:title',title),('name','twitter:description',DESCRIPTION),
+                ('name','twitter:image',site_url+'/'+quote(image.lstrip('/'),safe='/'))]
+        return f'<link rel="canonical" href="{E(canonical,quote=True)}">'+''.join(f'<meta {attribute}="{name}" content="{E(value,quote=True)}">' for attribute,name,value in fields)
+    def shell(content,title=cfg['title'],detail=False,path='',image='site-assets/avatar.webp'):
+        return f'''<!doctype html><html lang="zh-CN" class="{'detail-page' if detail else 'feed-page'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#131415">{metadata(title,path,image,'article' if detail else 'website')}<title>{E(title)}</title><link rel="icon" href="{url('site-assets/avatar.webp')}"><link rel="preload" href="{url('site-assets/fonts/courier-prime.woff2')}" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="{asset('style.css')}"></head><body><main id="top" class="timeline{' detail' if detail else ''}">{content}</main><script id="savour-config" type="application/json">{json.dumps(random_config)}</script><script src="{asset('site.js')}"></script></body></html>'''
     dots='<div class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></div>'
     def status(lock=False):
         left='fivsevn' if lock else '<span class="random-time" data-random="time">00:00</span><span>fivsevn</span>'
@@ -123,18 +137,26 @@ def build(root=ROOT, output=None, base_path=''):
         return '<nav class="pagination" aria-label="分页">'+''.join(links)+'</nav>'
     for n in range(1,total+1):
         content=lock()+'<div id="first-post"></div>'+''.join(phone(p) for p in posts[(n-1)*cfg['page_size']:n*cfg['page_size']])+pagination(n)+footer_chat()+lock(True)
-        save('index.html' if n==1 else f'feed/{n}/index.html',shell(content))
+        save('index.html' if n==1 else f'feed/{n}/index.html',shell(content,path='' if n==1 else f'feed/{n}/'))
     for p in posts:
-        save(p['route']+'index.html',shell(phone(p,True),p.get('title',p['id'])+' · '+cfg['title'],True))
-    def redirect(path,target):
-        save(path.rstrip('/')+'/index.html',f'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={E(target)}"><title>前往 Savour</title><a href="{E(target)}">前往这则美食分享</a></html>')
+        save(p['route']+'index.html',shell(phone(p,True),p.get('title',p['id'])+' · '+cfg['title'],True,path=p['route'],image=p['original_image']))
+    def redirect(path,target,canonical_path):
+        save(path.rstrip('/')+'/index.html',f'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={E(target)}"><title>前往 Savour</title>{metadata("前往 Savour",canonical_path)}<a href="{E(target)}">前往这则美食分享</a></html>')
     history=root/'site-data/history.json'
     routes={p['id']:p['route'] for p in posts}
     for path,ident in (json.loads(history.read_text()).get('aliases',{}) if history.exists() else {}).items():
-        if ident in routes: redirect(path,url(routes[ident]))
+        if ident in routes: redirect(path,url(routes[ident]),routes[ident])
     save('foodie/index.html',shell('<p class="broken-page"><a href="'+feed(1)+'">下滑开始吃 →</a></p>') .replace('</body>','<script>if(!location.search)location.replace('+json.dumps(feed(1))+');</script></body>'))
-    save('404.html',shell('<div class="broken-page">这条消息还没找到。<p><a href="'+feed(1)+'">返回 Savour 继续吃 →</a></p></div>'))
+    save('404.html',shell('<div class="broken-page">这条消息还没找到。<p><a href="'+feed(1)+'">返回 Savour 继续吃 →</a></p></div>',path='404.html'))
     save('.nojekyll','')
+    namespace='http://www.sitemaps.org/schemas/sitemap/0.9'
+    ET.register_namespace('',namespace)
+    sitemap=ET.Element('{'+namespace+'}urlset')
+    paths=['' if n==1 else f'feed/{n}/' for n in range(1,total+1)]+[p['route'] for p in posts]
+    for path in paths:
+        ET.SubElement(ET.SubElement(sitemap,'{'+namespace+'}url'),'{'+namespace+'}loc').text=site_url+'/'+quote(path,safe='/')
+    save('sitemap.xml',ET.tostring(sitemap,encoding='unicode',xml_declaration=True))
+    save('robots.txt','User-agent: *\nAllow: /\n\nSitemap: '+site_url+'/sitemap.xml\n')
     receipt=dict(posts=len(posts),pages=total,base_path=base_path,ids=[p['id'] for p in posts],files={})
     for f in sorted(output.rglob('*')):
         if f.is_file(): receipt['files'][f.relative_to(output).as_posix()]=hashlib.sha256(f.read_bytes()).hexdigest()

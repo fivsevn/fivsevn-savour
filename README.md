@@ -191,6 +191,8 @@ Each feed page contains up to **11 published posts**. The opening lock screen, c
 
 The workflow runs on relevant pushes to `main` and supports manual runs. It serializes publication and checks out the latest branch with complete Git history.
 
+Pull requests run `Check Savour` with read-only repository access: tests, pinned Spec checks, metadata/media validation and a static build, without importing real uploads or publishing. Changes to `CNAME` trigger these checks and the main-branch deployment; if that file exists, its domain is used and copied to the artifact, otherwise the existing domain remains in use. Canonical/social metadata, `sitemap.xml` and `robots.txt` use published page routes without changing page bodies or media.
+
 1. Install pinned dependencies, normalize shared post metadata, and run the test suite.
 2. Normalize saved photos, import unprocessed inbox changes from their immutable Git commit snapshots, and validate the shared core and site-post schemas.
 3. Read the actual Pages base path, build into `_site/`, and validate source integrity and generated references.

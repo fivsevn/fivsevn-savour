@@ -1,6 +1,7 @@
 import copy,importlib.util,json,tempfile,unittest
 from pathlib import Path
 import yaml
+import xml.etree.ElementTree as ET
 from PIL import Image
 from build import ROOT,read_posts,build
 from site_post_metadata import dump_frontmatter, normalize_metadata, read_frontmatter
@@ -65,6 +66,47 @@ class ContentTests(unittest.TestCase):
         build(root=self.root,output=output)
         route=read_posts(self.root)[0]['route']
         self.assertTrue((output/route/'assets/display.webp').is_file())
+    def test_search_metadata_and_discovery_use_public_canonical_routes(self):
+        from bs4 import BeautifulSoup
+        self.meta.update(title='晚饭 & "朋友"',image='assets/a.webp')
+        Image.new('RGB',(20,20),'red').save(self.package/'assets/a.webp','WEBP')
+        (self.package/'assets/a.jpg').unlink()
+        self.write('原有配文')
+        for i in range(13):
+            ident=f'2026-10-29-1300{i:02d}-post'
+            package=self.root/'savour/2026/10'/ident;(package/'assets').mkdir(parents=True)
+            Image.new('RGB',(20,20),'blue').save(package/'assets/photo.webp','WEBP')
+            meta=normalize_metadata(dict(id=ident,date=f'2026-10-29T13:00:{i:02d}+08:00',
+                  title=f'Post {i}',status='hidden' if i==12 else 'published',image='assets/photo.webp'),site='savour')
+            (package/'index.md').write_text(dump_frontmatter(meta))
+        (self.root/'site-assets').mkdir()
+        for name in ['style.css','site.js']:(self.root/'site-assets'/name).write_text('')
+        (self.root/'site.json').write_text(json.dumps({'title':'test','page_size':11,'random':{}}))
+        (self.root/'site-data').mkdir()
+        (self.root/'site-data/history.json').write_text(json.dumps({'order':[],'aliases':{'old-note':self.meta['id']}}))
+        (self.root/'CNAME').write_text('food.example\n')
+        output=self.root/'output';build(root=self.root,output=output,base_path='/preview')
+        route=next(p for p in read_posts(self.root) if p['id']==self.meta['id'])['route']
+        origin='https://food.example'
+        for path,canonical,kind in [('index.html',origin+'/', 'website'),('feed/2/index.html',origin+'/feed/2/','website'),
+                                    (route+'index.html',origin+'/'+route,'article'),('old-note/index.html',origin+'/'+route,'website')]:
+            soup=BeautifulSoup((output/path).read_text(),'html.parser')
+            self.assertEqual(canonical,soup.select_one('link[rel=canonical]')['href'])
+            self.assertEqual(canonical,soup.select_one('meta[property="og:url"]')['content'])
+            self.assertEqual(kind,soup.select_one('meta[property="og:type"]')['content'])
+            self.assertEqual(soup.title.string,soup.select_one('meta[property="og:title"]')['content'])
+            self.assertEqual('summary',soup.select_one('meta[name="twitter:card"]')['content'])
+            self.assertEqual('五月七日发来一条消息：下滑开始吃。',soup.select_one('meta[name=description]')['content'])
+        soup=BeautifulSoup((output/route/'index.html').read_text(),'html.parser')
+        self.assertEqual(origin+'/'+route+'assets/a.webp',soup.select_one('meta[property="og:image"]')['content'])
+        self.assertEqual('food.example\n',(output/'CNAME').read_text())
+        sitemap=ET.parse(output/'sitemap.xml');locations=[node.text for node in sitemap.findall('.//{*}loc')]
+        self.assertEqual(15,len(locations))
+        self.assertIn(origin+'/feed/2/',locations)
+        self.assertIn(origin+'/'+route,locations)
+        self.assertFalse(any('old-note' in location or '404.html' in location or 'foodie' in location or ident in location for location in locations))
+        self.assertEqual([],sitemap.findall('.//{*}lastmod'))
+        self.assertIn('Sitemap: '+origin+'/sitemap.xml',(output/'robots.txt').read_text())
     def test_archived_webp_is_served_without_another_lossy_copy(self):
         self.meta['image']='assets/a.webp'
         Image.new('RGB',(20,20),'red').save(self.package/'assets/a.webp','WEBP',quality=85)
