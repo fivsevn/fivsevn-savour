@@ -6,6 +6,7 @@ from urllib.parse import urlparse,unquote
 from bs4 import BeautifulSoup
 from PIL import Image
 from build import ROOT,read_posts
+from image_codec import validate_image
 
 def check(output,base_path):
     posts=read_posts()
@@ -24,10 +25,20 @@ def check(output,base_path):
             with Image.open(f) as im:
                 assert f.suffix.lower()=='.webp' and im.format=='WEBP',f'Photo is not WebP: {f}'
     assert not missing,missing
+    for folder in ['savour','unpublished','site-assets']:
+        for image in (ROOT/folder).rglob('*'):
+            if image.is_file() and image.suffix.lower() in {'.jpg','.jpeg','.png','.gif','.webp','.heic','.heif','.avif','.bmp','.tif','.tiff','.ico'}:
+                assert image.suffix.lower()=='.webp',f'Saved raster image is not WebP: {image}'
+                validate_image(image.read_bytes(),image.name)
+                with Image.open(image) as decoded:
+                    assert decoded.format=='WEBP',f'Image has a misleading WebP extension: {image}'
     for post in posts:
         with Image.open(post['image_path']) as im:
             assert post['image_path'].suffix.lower()=='.webp' and im.format=='WEBP',post['source']
     errors=[];html_count=0
+    for image in output.rglob('*'):
+        if image.is_file() and image.suffix.lower() in {'.jpg','.jpeg','.png','.gif','.webp','.heic','.heif','.avif','.bmp','.tif','.tiff','.ico'}:
+            assert image.suffix.lower()=='.webp',f'Public raster image is not WebP: {image}'
     for f in output.rglob('*.html'):
         html_count+=1;soup=BeautifulSoup(f.read_text(),'html.parser')
         assert not soup.select('[rel="tag"]'),f'Tags rendered: {f}'

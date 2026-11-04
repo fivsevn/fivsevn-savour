@@ -16,6 +16,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import tempfile
+from urllib.parse import quote
 
 from PIL import Image
 from image_codec import convert_image
@@ -27,10 +28,21 @@ MANIFEST = 'site-data/originals.json'
 STATE = '.publishing/state.json'
 RECEIPT = '.publishing/webp-conversion.json'
 FRONTMATTER = re.compile(r'\A---\r?\n(.*?)\r?\n---(?=\r?\n|\Z)', re.S)
+RASTER = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.avif', '.bmp', '.tif', '.tiff', '.ico'}
 
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def blob_sha(data: bytes) -> str:
+    return hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+
+
+def rewrite_local_references(text, aliases):
+    for old, new in sorted(aliases.items(), key=lambda pair: -len(pair[0])):
+        text = re.sub(r'(?<![\w/:%])' + re.escape(old) + r'(?=$|[^\w.%/-])', lambda _: new, text)
+    return text
 
 
 def file_digest(path: Path) -> str:
@@ -119,7 +131,7 @@ def normalize(root: Path = ROOT, workers: int = 4) -> dict:
         if item['path'] in seen:
             raise ValueError('Duplicate saved-image manifest path: ' + item['path'])
         seen.add(item['path'])
-        if item.get('role') not in {'post', 'unassigned'}:
+        if Path(item['path']).suffix.lower() not in RASTER:
             continue
         path = safe(root, item['path'])
         if not path.exists() and item.get('role') == 'post' and not (path.parent.parent / 'index.md').exists():
@@ -128,6 +140,15 @@ def normalize(root: Path = ROOT, workers: int = 4) -> dict:
                 or path.stat().st_size != item.get('bytes')):
             raise ValueError('Saved photo differs from its checksum manifest: ' + item['path'])
         add_image(path)
+
+    # Include manually added package media, retained unpublished photos and
+    # this site's own UI images, even before they enter the checksum manifest.
+    for folder in ('savour', 'unpublished', 'site-assets'):
+        base = safe(root, folder)
+        if base.exists():
+            for path in sorted(base.rglob('*')):
+                if path.suffix.lower() in RASTER and (path.is_file() or path.is_symlink()):
+                    add_image(path)
 
     state_path = safe(root, STATE)
     state_bytes = state_path.read_bytes() if state_path.exists() else None
@@ -156,6 +177,7 @@ def normalize(root: Path = ROOT, workers: int = 4) -> dict:
             if changed:
                 output.write_bytes(converted)
             return dict(item, target=destination, target_path=target_name, file_sha256=digest(converted),
+                        source_blob_sha=blob_sha(data), target_blob_sha=blob_sha(converted),
                         after_bytes=len(converted), changed=changed, output=output)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(workers, 4))) as pool:
@@ -185,9 +207,30 @@ def normalize(root: Path = ROOT, workers: int = 4) -> dict:
         metadata: dict[Path, tuple[bytes | None, bytes]] = {}
         for post in posts:
             converted = mapping.get(post['image'])
+            after = post['bytes']
             if converted and converted['path'] != converted['target_path']:
                 image = converted['target'].relative_to(post['source'].parent).as_posix()
-                metadata[post['source']] = (post['bytes'], replace_image(post['bytes'], post['source'], image))
+                after = replace_image(after, post['source'], image)
+            aliases = {}
+            for item in changed:
+                old, new = item['path'], item['target_path']
+                aliases.update({old: new, '/' + old: '/' + new})
+                if item['source'].is_relative_to(post['source'].parent):
+                    old = item['source'].relative_to(post['source'].parent).as_posix()
+                    new = item['target'].relative_to(post['source'].parent).as_posix()
+                    aliases.update({old: new, './' + old: './' + new})
+            aliases.update({quote(old, safe='/'): quote(new, safe='/') for old, new in list(aliases.items())})
+            after = rewrite_local_references(after.decode(), aliases).encode()
+            if after != post['bytes']:
+                metadata[post['source']] = (post['bytes'], after)
+        aliases = {key: value for item in changed for key, value in
+                   [(item['path'], item['target_path']), ('/' + item['path'], '/' + item['target_path'])]}
+        for path in sorted((root / 'site-assets').rglob('*')):
+            if path.is_file() and path.suffix.lower() in {'.css', '.js', '.html'}:
+                before = path.read_bytes()
+                after = rewrite_local_references(before.decode(), aliases).encode()
+                if before != after:
+                    metadata[path] = (before, after)
         manifest_after = (json.dumps(updated_manifest, ensure_ascii=False, indent=2) + '\n').encode()
         if manifest_after != manifest_bytes:
             metadata[manifest_path] = (manifest_bytes, manifest_after)
@@ -202,7 +245,7 @@ def normalize(root: Path = ROOT, workers: int = 4) -> dict:
         receipt_path = safe(root, RECEIPT)
         receipt_before = receipt_path.read_bytes() if receipt_path.exists() else None
         receipt = {'version': 1, **stats, 'files': [
-            {key: item[key] for key in ['path', 'target_path', 'source_sha256', 'file_sha256', 'before_bytes', 'after_bytes']}
+            {key: item[key] for key in ['path', 'target_path', 'source_blob_sha', 'target_blob_sha', 'source_sha256', 'file_sha256', 'before_bytes', 'after_bytes']}
             for item in changed]}
         metadata[receipt_path] = (receipt_before, (json.dumps(receipt, ensure_ascii=False, indent=2) + '\n').encode())
 

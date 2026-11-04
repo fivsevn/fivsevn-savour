@@ -4,6 +4,7 @@ import argparse, hashlib, html, json, re, shutil
 from pathlib import Path
 from urllib.parse import urlparse
 import markdown
+from image_codec import is_lossless_webp
 from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 from site_post_metadata import (is_published, metadata_view, published_datetime,
@@ -63,7 +64,7 @@ def build(root=ROOT, output=None, base_path=''):
         dest=output/path;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(content)
     random_config=dict(random=cfg['random'],base_path=base_path,total_pages=total)
     def shell(content,title=cfg['title'],detail=False):
-        return f'''<!doctype html><html lang="zh-CN" class="{'detail-page' if detail else 'feed-page'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#131415"><meta name="description" content="五月七日发来一条消息：下滑开始吃。"><title>{E(title)}</title><link rel="icon" href="{url('site-assets/avatar.png')}"><link rel="preload" href="{url('site-assets/fonts/courier-prime.woff2')}" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="{asset('style.css')}"></head><body><main id="top" class="timeline{' detail' if detail else ''}">{content}</main><script id="savour-config" type="application/json">{json.dumps(random_config)}</script><script src="{asset('site.js')}"></script></body></html>'''
+        return f'''<!doctype html><html lang="zh-CN" class="{'detail-page' if detail else 'feed-page'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#131415"><meta name="description" content="五月七日发来一条消息：下滑开始吃。"><title>{E(title)}</title><link rel="icon" href="{url('site-assets/avatar.webp')}"><link rel="preload" href="{url('site-assets/fonts/courier-prime.woff2')}" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="{asset('style.css')}"></head><body><main id="top" class="timeline{' detail' if detail else ''}">{content}</main><script id="savour-config" type="application/json">{json.dumps(random_config)}</script><script src="{asset('site.js')}"></script></body></html>'''
     dots='<div class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></div>'
     def status(lock=False):
         left='fivsevn' if lock else '<span class="random-time" data-random="time">00:00</span><span>fivsevn</span>'
@@ -72,7 +73,7 @@ def build(root=ROOT, output=None, base_path=''):
         h='h1' if detail else 'h2'
         return f'<div class="chat-header"><a class="plain-control" href="{back}" aria-label="返回列表" {"data-return" if detail else ""}>←</a><{h}><a href="https://fivsevn.com/">五月七日的思考札记</a></{h}><span aria-hidden="true">⋯</span></div>'
     def msg(content,classes=''):
-        return f'<div class="message"><img class="avatar" src="{url("site-assets/avatar.png")}" width="31" height="31" alt="五月七日" loading="lazy"><div class="bubble {classes}">{content}</div></div>'
+        return f'<div class="message"><img class="avatar" src="{url("site-assets/avatar.webp")}" width="31" height="31" alt="五月七日" loading="lazy"><div class="bubble {classes}">{content}</div></div>'
     def composer(text='｜下滑继续吃。'):
         return f'<div class="composer"><span class="composer-symbol" aria-hidden="true">+</span><span class="composer-input">{text}</span><a class="plain-control composer-symbol composer-up" href="#top" aria-label="回到顶部">↑</a></div>'
     progress='<div class="progress"><span>摄取进度</span><span>eating progress</span><span>[</span><span class="green" aria-hidden="true">▏▎▍▌▋▊▉█</span><span>]</span><span class="green progress-amount"><span class="progress-value" data-random="progress">000.000</span>%</span></div>'
@@ -83,11 +84,14 @@ def build(root=ROOT, output=None, base_path=''):
         with Image.open(p['image_path']) as im:
             webp=im.format=='WEBP'
             animated=im.format in {'GIF','PNG','WEBP'} and getattr(im,'is_animated',False)
-            im=ImageOps.exif_transpose(im).convert('RGB');p['width'],p['height']=im.size
+            transparent='A' in im.getbands() or 'transparency' in im.info
+            im=ImageOps.exif_transpose(im).convert('RGBA' if transparent else 'RGB');p['width'],p['height']=im.size
             preview=not animated and (not webp or max(im.size)>1400)
             display_name='display-preview.webp' if p['image_path'].name=='display.webp' else 'display.webp'
             if preview:
-                im.thumbnail((1400,1400));im.save(dest/'assets'/display_name,'WEBP',quality=88,method=6)
+                im.thumbnail((1400,1400))
+                lossless=transparent or is_lossless_webp(p['image_path'].read_bytes())
+                im.save(dest/'assets'/display_name,'WEBP',quality=88,method=6,lossless=lossless,exact=lossless)
         p['original_image']=p['route']+'assets/'+p['image_path'].name
         p['display_image']=p['route']+'assets/'+display_name if preview else p['original_image']
     def phone(p,detail=False):

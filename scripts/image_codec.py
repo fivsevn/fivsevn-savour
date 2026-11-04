@@ -1,7 +1,7 @@
 """Validate uploads and normalize saved photographs to WebP.
 
 The policy follows Flux: keep existing WebP bytes, encode photographs at quality
-85, and encode PNG/GIF graphics losslessly while retaining animation timing.
+95, and encode PNG/GIF graphics losslessly while retaining animation timing.
 """
 from io import BytesIO
 from pathlib import Path
@@ -48,7 +48,7 @@ def convert_image(data: bytes, filename: str) -> bytes:
             animated = fmt in {"GIF", "PNG"} and getattr(image, "is_animated", False)
             lossless = fmt in {"PNG", "GIF"}
             options = {"method": 4 if lossless else 6, "lossless": lossless,
-                       "quality": 75 if lossless else 85}
+                       "quality": 75 if lossless else 95}
             if lossless:
                 options["exact"] = True
             if image.info.get("icc_profile"):
@@ -62,7 +62,7 @@ def convert_image(data: bytes, filename: str) -> bytes:
                 for number in range(start, image.n_frames):
                     image.seek(number)
                     frames.append(image.convert("RGBA"))
-                    durations.append(image.info.get("duration", 100) or 100)
+                    durations.append(image.info.get("duration", 100))
                 options.update(save_all=True, append_images=frames[1:], duration=durations,
                                minimize_size=False)
                 primary = frames[0]
@@ -80,3 +80,17 @@ def convert_image(data: bytes, filename: str) -> bytes:
         return result
     except (OSError, SyntaxError, EOFError, Image.DecompressionBombError) as error:
         raise ValueError(f"Invalid or damaged image upload: {filename}") from error
+
+
+def is_lossless_webp(data: bytes) -> bool:
+    """Identify a static lossless WebP so display copies keep graphics lossless."""
+    if data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        return False
+    position = 12
+    while position + 8 <= len(data):
+        kind = data[position:position + 4]
+        size = int.from_bytes(data[position + 4:position + 8], "little")
+        if kind == b"VP8L":
+            return True
+        position += 8 + size + (size & 1)
+    return False

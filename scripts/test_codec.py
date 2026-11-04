@@ -89,6 +89,20 @@ class CodecTests(unittest.TestCase):
             with self.subTest(filename=filename), self.assertRaises(ValueError):
                 convert_image(data, filename)
 
+    def test_truncated_jpeg_is_rejected_instead_of_encoded_partially(self):
+        source = encoded(Image.new('RGB', (32, 24), 'red'), 'JPEG')
+        for data in [source[:-2], source[:len(source)//2]]:
+            with self.subTest(length=len(data)), self.assertRaises(ValueError):
+                convert_image(data, 'truncated.jpg')
+
+    def test_explicit_zero_frame_duration_is_retained(self):
+        source = encoded(Image.new('RGB', (4, 3), 'red'), 'GIF', save_all=True,
+                         append_images=[Image.new('RGB', (4, 3), 'blue')], duration=[0, 140], loop=0, disposal=2)
+        with Image.open(BytesIO(convert_image(source, 'zero.gif'))) as saved:
+            for number, duration in enumerate([0, 140]):
+                saved.seek(number); saved.load()
+                self.assertEqual(saved.info['duration'], duration)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -92,6 +92,21 @@ class ContentTests(unittest.TestCase):
         route=read_posts(self.root)[0]['route']
         self.assertEqual((output/route/'assets/display.webp').read_bytes(),original)
         with Image.open(output/route/'assets/display-preview.webp') as image:self.assertEqual(image.width,1400)
+    def test_transparent_webp_display_does_not_get_an_opaque_background(self):
+        self.meta['image']='assets/a.webp'
+        photo=Image.new('RGBA',(1600,800),(25,50,75,0))
+        photo.paste((255,0,0,255),(400,200,1200,600))
+        photo.save(self.package/'assets/a.webp','WEBP',lossless=True,exact=True)
+        self.write()
+        (self.root/'site-assets').mkdir()
+        for name in ['style.css','site.js']:(self.root/'site-assets'/name).write_text('')
+        (self.root/'site.json').write_text(json.dumps({'title':'test','page_size':11,'random':{}}))
+        output=self.root/'output';build(root=self.root,output=output)
+        route=read_posts(self.root)[0]['route']
+        with Image.open(output/route/'assets/display.webp') as image:
+            self.assertEqual(image.size,(1400,700))
+            self.assertEqual(image.convert('RGBA').getpixel((0,0))[3],0)
+            self.assertEqual(image.convert('RGBA').getpixel((700,350)),(255,0,0,255))
     def test_body_edit_preserves_route(self):
         self.write('one');a=read_posts(self.root)[0]['route'];self.write('two');self.assertEqual(a,read_posts(self.root)[0]['route'])
     def test_historical_order_and_local_assets(self):

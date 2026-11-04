@@ -76,15 +76,17 @@ class NormalizeImagesTests(unittest.TestCase):
         shared.write_bytes(shared_data)
         self.add_manifest(shared, shared_data, 'avatar')
         stats = normalize(self.root)
-        self.assertEqual(stats['count'], 2)
-        self.assertEqual(stats['photo_count'], 2)
+        self.assertEqual(stats['count'], 3)
+        self.assertEqual(stats['photo_count'], 3)
         self.assertFalse(photo.exists())
         self.assertFalse(unassigned.exists())
         for p in [photo.with_suffix('.webp'), unassigned.with_suffix('.webp')]:
             with Image.open(p) as image:
                 self.assertEqual(image.format, 'WEBP')
                 self.assertEqual(image.size, (32, 24))
-        self.assertEqual(shared.read_bytes(), shared_data)
+        self.assertFalse(shared.exists())
+        with Image.open(shared.with_suffix('.webp')) as saved, Image.open(BytesIO(shared_data)) as original:
+            self.assertEqual(saved.convert('RGBA').tobytes(), original.convert('RGBA').tobytes())
         after = source.read_bytes()
         old_meta,old_body=read_frontmatter(before.decode())
         new_meta,new_body=read_frontmatter(after.decode())
@@ -99,8 +101,16 @@ class NormalizeImagesTests(unittest.TestCase):
             self.assertEqual(item['sha256'], sha(p.read_bytes()))
             self.assertEqual(item['bytes'], p.stat().st_size)
         receipt = json.loads((self.root / '.publishing/webp-conversion.json').read_text())
-        self.assertEqual(receipt['count'], 2)
-        self.assertEqual(len(receipt['files']), 2)
+        self.assertEqual(receipt['count'], 3)
+        self.assertEqual(len(receipt['files']), 3)
+
+    def test_caption_link_to_selected_photo_follows_its_webp_path(self):
+        source, photo = self.post()
+        source.write_text(source.read_text() + '\n[大图](./assets/photo.png?size=full#photo)\n'
+                          '[原始来源](https://example.test/assets/photo.png)\n')
+        normalize(self.root)
+        self.assertIn('[大图](./assets/photo.webp?size=full#photo)', source.read_text())
+        self.assertIn('https://example.test/assets/photo.png', source.read_text())
 
     def test_idempotent_and_existing_webp_bytes_are_not_reencoded(self):
         source, photo = self.post()

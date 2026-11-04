@@ -92,11 +92,11 @@ Edit saved packages under `savour/`. Generated HTML and display thumbnails belon
 
 Each image becomes a separate post. Images uploaded in the same commit share the caption from its extended description. Publishing uses a photo and optional caption.
 
-### Use Working Copy or a phone shortcut
+### Use a phone shortcut
 
 Configure the shortcut to use **fivsevn-savour**, save images into `trigger_imgs/`, and commit and push to this repository's `main` branch. If the shortcut collects a caption, write it to the commit's extended description.
 
-Before each upload, pull the latest `main`. The publishing bot creates commits containing new packages, publication state, and inbox cleanup; the next pull brings those changes back to the phone. Then save, commit, and push the new photos.
+Use a direct GitHub API shortcut that reads the latest `main` for each upload. History cleanup changes commit IDs: re-clone old Working Copy checkouts instead of merging them. Read-only PR refs and server object retention are managed by GitHub.
 
 ### Dates, names, and duplicate handling
 
@@ -113,16 +113,16 @@ Supported inputs are JPG/JPEG, PNG, WebP, GIF, HEIC, and HEIF, with case-insensi
 
 | Input | Archived WebP behavior |
 | --- | --- |
-| JPEG and HEIC/HEIF photos | Quality 85, original display dimensions, corrected orientation, retained ICC color profile and applicable EXIF metadata |
+| JPEG and HEIC/HEIF photos | Quality 95, original display dimensions, corrected orientation, retained ICC color profile and applicable EXIF metadata |
 | PNG graphics | Lossless WebP with transparency; animated PNG frames and timing are retained |
 | GIF animations | Lossless animated WebP retaining frames, timing, transparency, and loop behavior |
 | Existing WebP | Validated and retained byte-for-byte |
 
-MPO and HEIF uploads use the primary display photo; auxiliary images such as phone HDR gain maps stay outside the animation frames. Each saved package keeps its archived WebP. Uploaded originals remain recoverable from Git history.
+MPO and HEIF uploads use the primary display photo; auxiliary images such as phone HDR gain maps stay outside the animation frames. Each saved package keeps its archived WebP. After verified inbox cleanup, the workflow removes converted non-WebP images from `main` history and remaps publication cursors; pending inputs or concurrent commits defer this step. Keep original backups outside Git and pull the latest `main` before uploading.
 
 For static images larger than 1400 pixels on their longest edge, the website build creates a smaller `display.webp` thumbnail in `_site/`. The individual post links to the full-resolution archived WebP. Smaller WebP images and animations are served directly. Display thumbnails live in the generated deployment artifact.
 
-`normalize_images.py` also handles saved packages added manually, including hidden and draft posts. It validates the whole batch, stages converted files, updates image references and retained-asset checksums, and replaces old-format files as one transaction. Existing WebP files and the conversion receipt stay unchanged when the archive is already normalized.
+`normalize_images.py` also handles saved packages added manually, including hidden and draft posts, unused saved media, retained unpublished photos, and this site’s UI raster images. It validates the whole batch, stages converted files, updates image references and retained-asset checksums, and replaces old-format files as one transaction. Existing WebP files and the conversion receipt stay unchanged when the archive is already normalized. Source and public-image validation reject raster formats other than WebP before deployment.
 
 ## Captions and saved posts
 
@@ -183,7 +183,7 @@ Uploads need only a photo and optional caption. The importer fills the shared fi
 
 The photo is stored in `extra.image`; put caption text after the closing `---`. On the individual page, the photo appears as one chat message and a caption as another. Image-only posts show the photo message. Additional Markdown images in the body fail validation.
 
-To revise a caption, edit the saved `index.md`, commit, and push. Keep the ID and `extra.published_at` unchanged to preserve the permalink and chronological position. Set `status` to `hidden` or `draft`, or set `visibility` to `private` or `internal`, to exclude a post from the generated website. This metadata does not make files in the public repository private. Delete a post's entire package directory to remove it; earlier versions remain in Git history.
+To revise a caption, edit the saved `index.md`, commit, and push. Keep the ID and `extra.published_at` unchanged to preserve the permalink and chronological position. Set `status` to `hidden` or `draft`, or set `visibility` to `private` or `internal`, to exclude a post from the generated website. This metadata does not make files in the public repository private. Delete a post's entire package directory to remove it; retained WebP archive history and external backups support recovery.
 
 Each feed page contains up to **11 published posts**. The opening lock screen, closing chat, and final lock screen are decorative sections and do not count toward that limit. A partial final page contains the remaining posts.
 
