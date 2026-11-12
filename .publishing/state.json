@@ -1,5 +1,5 @@
 {
-  "cursor": "488eb91a1259fb35cfba87c81b55462cdcfb1ff8",
+  "cursor": "ba6126b23618abc890661d5aad925d455baf8972",
   "events": {
     "37fd68abaf1c47b24c861d0aa44550a5bada81b4:trigger_imgs/IMG_2999.jpeg": {
       "blob_sha": "5d97554f9e41b339eb71aab07c99b011a6293c12",
@@ -109,6 +109,16 @@
       "file_sha256": "aebe4c665fb351138bc2cbec21161eb056a9ea4ea3b16e846a18f8726f6ca449",
       "image_path": "savour/2026/11/2026-11-12-014157-d3b9bf4c759d/assets/20261112-014157-savour-7cfba285677f-001.webp",
       "route": "page/2026/11/2026-11-12-014157-d3b9bf4c759d/"
+    },
+    "ba6126b23618abc890661d5aad925d455baf8972:trigger_imgs/IMG_3212.jpeg": {
+      "id": "2026-11-12-230825-78c400f39bcd",
+      "commit": "ba6126b23618abc890661d5aad925d455baf8972",
+      "upload_path": "trigger_imgs/IMG_3212.jpeg",
+      "blob_sha": "ac05e0a6ad69c8f8b929a5ccbfbc8be1b9959ba7",
+      "sha256": "d61dfaf21930578cf16192639784f3f075384baeb5b8262254aa2b3f86c11dc0",
+      "file_sha256": "fa0952e89170d1010c46f86bf18787c034de66b8c76482e8fa0e53e3cc1f6d02",
+      "image_path": "savour/2026/11/2026-11-12-230825-78c400f39bcd/assets/20261112-230825-savour-8442f3a084ac-001.webp",
+      "route": "page/2026/11/2026-11-12-230825-78c400f39bcd/"
     }
   },
   "version": 1
